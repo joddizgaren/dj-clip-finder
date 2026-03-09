@@ -1,4 +1,4 @@
-import { execFile } from "child_process";
+import { execFile, spawn } from "child_process";
 import { promisify } from "util";
 import path from "path";
 
@@ -6,7 +6,7 @@ const execFileAsync = promisify(execFile);
 
 export interface PeakMoment {
   time: number;        // seconds from start
-  energyLevel: number; // 0-100
+  energyLevel: number; // 0-100 relative to the recording
   type: "drop" | "transition" | "build";
 }
 
@@ -16,7 +16,7 @@ export interface AudioAnalysisResult {
 }
 
 /**
- * Get the total duration of a video file using ffprobe
+ * Get the total duration of a video file using ffprobe.
  */
 export async function getVideoDuration(filePath: string): Promise<number> {
   const { stdout } = await execFileAsync("ffprobe", [
@@ -30,181 +30,217 @@ export async function getVideoDuration(filePath: string): Promise<number> {
 }
 
 /**
- * Analyze audio loudness over time using ffmpeg's ebur128 filter.
- * ebur128 outputs time-stamped loudness measurements to stderr every ~400ms.
- * This is far more reliable than astats for detecting energy over time.
+ * Extract audio as raw 16-bit PCM at a low sample rate (100 Hz) using ffmpeg.
+ * Returns a Buffer of interleaved s16le samples (mono, 1 channel).
+ *
+ * At 100 Hz, 1 hour of audio = 3600 * 100 * 2 bytes ≈ 720 KB — very manageable.
+ * This works reliably regardless of FFmpeg version, OS, or recording type.
  */
-export async function analyzeAudioLoudness(
-  filePath: string
-): Promise<{ time: number; loudness: number }[]> {
-  const { stderr } = await execFileAsync("ffmpeg", [
-    "-i", filePath,
-    "-af", "ebur128=peak=true",
-    "-f", "null",
-    "-",
-  ], { maxBuffer: 50 * 1024 * 1024 });
+function extractPcm(filePath: string): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    const chunks: Buffer[] = [];
+    const ff = spawn("ffmpeg", [
+      "-i", filePath,
+      "-ac", "1",         // downmix to mono
+      "-ar", "100",       // 100 Hz — 1 sample per 10ms
+      "-f", "s16le",      // raw 16-bit signed little-endian
+      "pipe:1",           // stream to stdout
+    ]);
 
-  // Parse ebur128 output lines:
-  // [Parsed_ebur128_0 @ 0x...] t: 1.0000 TARGET:-23 LUFS M: -20.5 S: -18.2 I: -19.0 LRA: 2.0
-  const results: { time: number; loudness: number }[] = [];
-  const pattern = /t:\s*([\d.]+)\s+TARGET[^\s]+\s+LUFS\s+M:\s*([-\d.]+)/g;
+    ff.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
+    ff.on("close", (code) => {
+      if (chunks.length === 0) {
+        reject(new Error(`FFmpeg exited with code ${code} and produced no audio data`));
+      } else {
+        resolve(Buffer.concat(chunks));
+      }
+    });
+    ff.on("error", reject);
+  });
+}
 
-  let match;
-  while ((match = pattern.exec(stderr)) !== null) {
-    const time = parseFloat(match[1]);
-    const momentaryLufs = parseFloat(match[2]);
+/**
+ * Compute RMS energy in sliding windows from raw PCM buffer.
+ * WINDOW_SECS: how many seconds per measurement window.
+ */
+function computeRmsWindows(
+  pcm: Buffer,
+  sampleRate: number = 100,
+  windowSecs: number = 2
+): { time: number; rms: number }[] {
+  const windowSize = Math.floor(sampleRate * windowSecs); // samples per window
+  const numSamples = Math.floor(pcm.length / 2);          // 2 bytes per s16le sample
+  const results: { time: number; rms: number }[] = [];
 
-    // Skip silence / below noise floor
-    if (momentaryLufs < -70 || isNaN(momentaryLufs)) continue;
-
-    results.push({ time, loudness: momentaryLufs });
+  for (let i = 0; i + windowSize <= numSamples; i += windowSize) {
+    let sumSq = 0;
+    for (let j = 0; j < windowSize; j++) {
+      const sample = pcm.readInt16LE((i + j) * 2);
+      sumSq += sample * sample;
+    }
+    const rms = Math.sqrt(sumSq / windowSize);
+    results.push({ time: i / sampleRate, rms });
   }
 
   return results;
 }
 
 /**
- * Convert raw loudness measurements to a normalised 0-100 energy scale,
- * using the actual min/max of the recording (adaptive to any audio level).
+ * Normalize RMS values to a 0-100 scale relative to the recording's own
+ * min/max — so it works whether the signal is a quiet room mic or a hot
+ * cable-in feed.
  */
-function normalizeToEnergy(
-  measurements: { time: number; loudness: number }[]
-): { time: number; energy: number }[] {
-  if (measurements.length === 0) return [];
+function normalize(windows: { time: number; rms: number }[]): { time: number; energy: number }[] {
+  if (windows.length === 0) return [];
 
-  const values = measurements.map(m => m.loudness);
-  const min = Math.min(...values);
+  const values = windows.map(w => w.rms);
   const max = Math.max(...values);
+  const min = Math.min(...values);
   const range = max - min;
 
   if (range < 1) {
-    // Nearly flat audio — assign mid energy to all
-    return measurements.map(m => ({ time: m.time, energy: 50 }));
+    // Extremely flat audio — still normalize but flag it
+    return windows.map(w => ({ time: w.time, energy: 50 }));
   }
 
-  return measurements.map(m => ({
-    time: m.time,
-    energy: Math.round(((m.loudness - min) / range) * 100),
+  return windows.map(w => ({
+    time: w.time,
+    energy: Math.round(((w.rms - min) / range) * 100),
   }));
 }
 
 /**
- * Smooth energy values with a rolling average window.
+ * Apply a rolling average to smooth out transients and room reflections.
+ * A wider window (smoothSecs) is better for mic recordings.
  */
-function smooth(data: { time: number; energy: number }[], windowSecs: number = 3): { time: number; energy: number }[] {
-  // Estimate average time step
-  if (data.length < 2) return data;
-  const avgStep = (data[data.length - 1].time - data[0].time) / (data.length - 1);
-  const halfWindow = Math.max(1, Math.round(windowSecs / avgStep / 2));
+function smooth(
+  data: { time: number; energy: number }[],
+  smoothSecs: number = 4
+): { time: number; energy: number }[] {
+  if (data.length < 3) return data;
+
+  // Each window is 2 seconds, so we measure in units of windows
+  const halfWin = Math.max(1, Math.round(smoothSecs / 2));
 
   return data.map((point, i) => {
-    const start = Math.max(0, i - halfWindow);
-    const end = Math.min(data.length - 1, i + halfWindow);
-    const slice = data.slice(start, end + 1);
+    const lo = Math.max(0, i - halfWin);
+    const hi = Math.min(data.length - 1, i + halfWin);
+    const slice = data.slice(lo, hi + 1);
     const avg = slice.reduce((s, p) => s + p.energy, 0) / slice.length;
     return { time: point.time, energy: Math.round(avg) };
   });
 }
 
 /**
- * Detect significant peak moments from normalised, smoothed energy data.
- * Uses adaptive thresholds relative to the recording's actual energy levels.
+ * Compute the energy derivative (rate of change) to detect sudden attacks
+ * like drops. A large positive derivative = fast energy rise.
+ */
+function derivative(data: { time: number; energy: number }[]): number[] {
+  return data.map((point, i) => {
+    if (i === 0) return 0;
+    return point.energy - data[i - 1].energy;
+  });
+}
+
+/**
+ * Detect peak moments using both absolute energy and rate-of-change signals.
+ * Thresholds are relative to the recording so both mic and line-in work.
  */
 export function detectPeakMoments(
-  data: { time: number; energy: number }[],
-  minPeakGapSecs: number = 25
+  raw: { time: number; energy: number }[],
+  minPeakGapSecs: number = 30
 ): PeakMoment[] {
-  if (data.length < 10) return [];
+  if (raw.length < 10) return [];
 
-  const smoothed = smooth(data, 3);
+  const smoothed = smooth(raw, 4);
+  const diff = derivative(smoothed);
 
-  // Use the 65th percentile as a minimum threshold so we only pick
-  // genuinely high-energy moments, not just the best of a quiet file
-  const sorted = [...smoothed.map(d => d.energy)].sort((a, b) => a - b);
-  const p65 = sorted[Math.floor(sorted.length * 0.65)];
-  const minThreshold = Math.max(p65, 30); // never go below 30
+  // Minimum energy: 60th percentile of the smoothed energy
+  // (top 40% of the recording's own energy scale)
+  const sortedEnergy = [...smoothed.map(d => d.energy)].sort((a, b) => a - b);
+  const p60 = sortedEnergy[Math.floor(sortedEnergy.length * 0.60)];
+
+  // Minimum attack (derivative): 75th percentile — significant rises only
+  const sortedDiff = [...diff].filter(d => d > 0).sort((a, b) => a - b);
+  const p75attack = sortedDiff.length > 0
+    ? sortedDiff[Math.floor(sortedDiff.length * 0.75)]
+    : 0;
 
   const peaks: PeakMoment[] = [];
-  const lookAhead = Math.round(minPeakGapSecs / 2); // samples, roughly
+  const lookAhead = Math.max(3, Math.round(minPeakGapSecs / 4)); // ~7 windows
   let lastPeakTime = -minPeakGapSecs;
 
   for (let i = lookAhead; i < smoothed.length - lookAhead; i++) {
-    const current = smoothed[i];
-    if (current.energy < minThreshold) continue;
-    if (current.time - lastPeakTime < minPeakGapSecs) continue;
+    const cur = smoothed[i];
+    const attack = diff[i];
 
-    // Must be a local maximum within the window
-    const window = smoothed.slice(Math.max(0, i - lookAhead), Math.min(smoothed.length, i + lookAhead + 1));
+    if (cur.time - lastPeakTime < minPeakGapSecs) continue;
+
+    // Must have meaningful energy
+    if (cur.energy < p60) continue;
+
+    // Must be a local maximum in the window
+    const window = smoothed.slice(i - lookAhead, i + lookAhead + 1);
     const localMax = Math.max(...window.map(w => w.energy));
-    if (current.energy < localMax) continue;
+    if (cur.energy < localMax) continue;
 
-    // Classify the type based on energy shape before vs after peak
-    const before = smoothed.slice(Math.max(0, i - lookAhead), i);
-    const after = smoothed.slice(i + 1, Math.min(smoothed.length, i + lookAhead + 1));
-    const beforeAvg = before.length ? before.reduce((s, p) => s + p.energy, 0) / before.length : current.energy;
-    const afterAvg = after.length ? after.reduce((s, p) => s + p.energy, 0) / after.length : current.energy;
-    const rise = current.energy - beforeAvg;
-    const fall = current.energy - afterAvg;
+    // Classify type by looking at the energy shape around the peak
+    const beforeSlice = smoothed.slice(Math.max(0, i - lookAhead), i);
+    const afterSlice  = smoothed.slice(i + 1, Math.min(smoothed.length, i + lookAhead + 1));
+    const beforeAvg = beforeSlice.length
+      ? beforeSlice.reduce((s, p) => s + p.energy, 0) / beforeSlice.length
+      : cur.energy;
+    const afterAvg  = afterSlice.length
+      ? afterSlice.reduce((s, p) => s + p.energy, 0) / afterSlice.length
+      : cur.energy;
+
+    const rise = cur.energy - beforeAvg;
+    const fall = cur.energy - afterAvg;
 
     let type: "drop" | "transition" | "build";
-    if (rise > 12 && fall > 8) {
-      type = "drop";
-    } else if (rise > 12) {
-      type = "build";
+    if (rise > 10 && fall > 8 && attack >= p75attack) {
+      type = "drop";       // sharp rise AND sharp fall AND fast attack
+    } else if (rise > 10 && attack >= p75attack) {
+      type = "build";      // sharp rise with fast attack
     } else {
-      type = "transition";
+      type = "transition"; // sustained high energy, gradual change
     }
 
     peaks.push({
-      time: current.time,
-      energyLevel: current.energy,
+      time: cur.time,
+      energyLevel: cur.energy,
       type,
     });
 
-    lastPeakTime = current.time;
+    lastPeakTime = cur.time;
   }
 
-  // Sort best first
+  // Return sorted best-first
   return peaks.sort((a, b) => b.energyLevel - a.energyLevel);
 }
 
 /**
- * Full pipeline: analyze a video file and return detected peak moments
+ * Full pipeline: analyze a video file and return detected peak moments.
+ * Returns peaks: [] if no highlights found — no fallback clips are generated.
  */
 export async function analyzeVideoFile(filePath: string): Promise<AudioAnalysisResult> {
   const duration = await getVideoDuration(filePath);
-  const raw = await analyzeAudioLoudness(filePath);
-
-  if (raw.length === 0) {
-    // Fallback: if ebur128 returned nothing, space peaks evenly every 3 minutes
-    console.warn("ebur128 returned no data — using evenly spaced fallback peaks");
-    const step = 180; // every 3 minutes
-    const fallback: PeakMoment[] = [];
-    for (let t = step; t < duration - 60; t += step) {
-      fallback.push({ time: t, energyLevel: 60, type: "transition" });
-    }
-    return { duration: Math.floor(duration), peaks: fallback };
-  }
-
-  const normalized = normalizeToEnergy(raw);
+  const pcm = await extractPcm(filePath);
+  const windows = computeRmsWindows(pcm);
+  const normalized = normalize(windows);
   const peaks = detectPeakMoments(normalized);
 
-  // Fallback: if still no peaks (e.g. extremely flat audio), evenly space some
   if (peaks.length === 0) {
-    console.warn("No peaks detected — using evenly spaced fallback peaks");
-    const step = 180;
-    const fallback: PeakMoment[] = [];
-    for (let t = step; t < duration - 60; t += step) {
-      fallback.push({ time: t, energyLevel: 60, type: "transition" });
-    }
-    return { duration: Math.floor(duration), peaks: fallback };
+    console.log(`Analysis complete — no clear highlight moments detected in "${path.basename(filePath)}". Peak count: 0.`);
+  } else {
+    console.log(`Analysis complete — found ${peaks.length} highlight moments in "${path.basename(filePath)}".`);
   }
 
   return { duration: Math.floor(duration), peaks };
 }
 
 /**
- * Extract a video clip using ffmpeg
+ * Extract a video clip using ffmpeg.
  */
 export async function extractClip(
   inputPath: string,
@@ -227,7 +263,7 @@ export async function extractClip(
 
 /**
  * Given a detected peak, compute clip start/end times centered on the peak.
- * Biases slightly before the peak (40/60 split) to capture the build-up.
+ * Uses a 40/60 before/after split to include the build-up leading into the moment.
  */
 export function computeClipTimes(
   peak: PeakMoment,
@@ -238,10 +274,7 @@ export function computeClipTimes(
   let startTime = Math.floor(peak.time) - halfBefore;
   let endTime = startTime + clipDuration;
 
-  if (startTime < 0) {
-    startTime = 0;
-    endTime = clipDuration;
-  }
+  if (startTime < 0) { startTime = 0; endTime = clipDuration; }
   if (endTime > videoDuration) {
     endTime = videoDuration;
     startTime = Math.max(0, endTime - clipDuration);

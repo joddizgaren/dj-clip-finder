@@ -201,6 +201,15 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         // Re-analyze the file to get fresh peaks
         const analysis = await analyzeVideoFile(found.filePath);
 
+        if (analysis.peaks.length === 0) {
+          await storage.updateUpload(found.id, {
+            status: "error",
+            error: "No highlight moments could be detected in this recording. The audio energy may be too consistent throughout the set for automatic detection. Try a recording with more dynamic range between quiet and loud sections.",
+          });
+          console.log(`No peaks found for upload ${found.id} — marked as error.`);
+          return;
+        }
+
         // Delete existing clips for this upload
         const existing = await storage.getClipsByUpload(found.id);
         for (const c of existing) {
@@ -209,12 +218,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         await storage.deleteClipsByUpload(found.id);
 
         const created: string[] = [];
-        const usedPeaks = new Set<number>();
 
         for (const dur of durations as number[]) {
-          // Try top peaks first
+          // Pick the best available peak for this duration (highest energy, not already used for same duration)
+          const usedTimesForDur = new Set<number>();
           for (const peak of analysis.peaks) {
-            if (usedPeaks.has(peak.time)) continue;
+            if (usedTimesForDur.has(peak.time)) continue;
 
             const times = computeClipTimes(peak, dur, analysis.duration);
             if (!times) continue;
@@ -234,9 +243,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
               energyLevel: peak.energyLevel,
             });
 
-            usedPeaks.add(peak.time);
+            usedTimesForDur.add(peak.time);
             created.push(clipFilename);
-            break; // one clip per duration from best available peak
+            break; // one clip per duration
           }
         }
 
