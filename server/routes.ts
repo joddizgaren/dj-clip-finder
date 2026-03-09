@@ -91,6 +91,58 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Register a video by local file path (no upload transfer)
+  app.post("/api/uploads/local", async (req, res) => {
+    const { filePath } = req.body;
+    if (!filePath || typeof filePath !== "string") {
+      return res.status(400).json({ message: "filePath is required" });
+    }
+
+    const trimmed = filePath.trim();
+    if (!fs.existsSync(trimmed)) {
+      return res.status(400).json({ message: "File not found at that path. Make sure the app is running on the same machine as your video files." });
+    }
+
+    const stat = fs.statSync(trimmed);
+    if (!stat.isFile()) {
+      return res.status(400).json({ message: "Path points to a directory, not a file." });
+    }
+
+    const ext = path.extname(trimmed).toLowerCase();
+    if (![".mp4", ".mov", ".avi", ".webm", ".mkv"].includes(ext)) {
+      return res.status(400).json({ message: "File must be a video (MP4, MOV, AVI, WebM, MKV)." });
+    }
+
+    try {
+      const record = await storage.createUpload({
+        filename: path.basename(trimmed),
+        filePath: trimmed,
+        duration: 0,
+      });
+
+      res.status(201).json({ ...record, status: "processing" });
+
+      // Run analysis asynchronously
+      (async () => {
+        try {
+          const analysis = await analyzeVideoFile(trimmed);
+          await storage.updateUpload(record.id, {
+            duration: analysis.duration,
+            status: "analyzed",
+          });
+        } catch (err) {
+          console.error("Analysis failed:", err);
+          await storage.updateUpload(record.id, {
+            status: "error",
+            error: String(err),
+          });
+        }
+      })();
+    } catch (err) {
+      res.status(500).json({ message: "Failed to register file: " + String(err) });
+    }
+  });
+
   // Delete an upload and all its clips
   app.delete("/api/uploads/:id", async (req, res) => {
     const found = await storage.getUpload(req.params.id);

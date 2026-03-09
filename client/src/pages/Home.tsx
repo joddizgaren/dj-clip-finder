@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { formatDuration, formatTime, cn } from "@/lib/utils";
 import type { Upload, Clip } from "@shared/schema";
@@ -24,6 +25,10 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
+  FolderOpen,
+  Wifi,
+  HardDrive,
+  Info,
 } from "lucide-react";
 
 const CLIP_DURATIONS = [15, 20, 30, 45] as const;
@@ -311,6 +316,7 @@ export default function Home() {
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  const [localPath, setLocalPath] = useState("");
 
   const { data: uploads = [], isLoading } = useQuery<Upload[]>({
     queryKey: ["/api/uploads"],
@@ -325,6 +331,19 @@ export default function Home() {
     mutationFn: (id: string) => apiRequest("DELETE", `/api/uploads/${id}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/uploads"] }),
     onError: () => toast({ title: "Failed to delete", variant: "destructive" }),
+  });
+
+  const localPathMutation = useMutation({
+    mutationFn: (filePath: string) =>
+      apiRequest("POST", "/api/uploads/local", { filePath }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/uploads"] });
+      toast({ title: "File registered!", description: "Analyzing audio for highlight moments..." });
+      setLocalPath("");
+    },
+    onError: (err: Error) => {
+      toast({ title: "Failed to register file", description: err.message, variant: "destructive" });
+    },
   });
 
   const handleFiles = useCallback(async (files: FileList | null) => {
@@ -400,7 +419,7 @@ export default function Home() {
           <CardContent className="p-5">
             <div className="flex items-center gap-4 flex-wrap">
               {[
-                { icon: <UploadIcon className="w-4 h-4" />, label: "Upload your set" },
+                { icon: <UploadIcon className="w-4 h-4" />, label: "Add your set" },
                 { icon: <ArrowRight className="w-3 h-3 text-muted-foreground" />, label: null },
                 { icon: <Music2 className="w-4 h-4" />, label: "AI finds drops & transitions" },
                 { icon: <ArrowRight className="w-3 h-3 text-muted-foreground" />, label: null },
@@ -419,49 +438,120 @@ export default function Home() {
           </CardContent>
         </Card>
 
-        {/* Upload zone */}
-        <div
-          onDrop={onDrop}
-          onDragOver={onDragOver}
-          onDragLeave={onDragLeave}
-          onClick={() => !uploading && fileInputRef.current?.click()}
-          className={cn(
-            "border-2 border-dashed rounded-md p-10 text-center cursor-pointer transition-colors flex flex-col items-center gap-4",
-            isDragging
-              ? "border-primary bg-primary/5"
-              : "border-border bg-muted/30 hover:bg-muted/50 hover:border-muted-foreground/40"
-          )}
-          data-testid="drop-zone-upload"
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="video/*,.mp4,.mov,.avi,.webm,.mkv"
-            className="hidden"
-            onChange={e => handleFiles(e.target.files)}
-            data-testid="input-video-file"
-          />
-          {uploading ? (
-            <>
-              <Loader2 className="w-8 h-8 text-primary animate-spin" />
-              <div className="flex flex-col gap-2 w-full max-w-xs">
-                <p className="text-sm font-medium text-foreground">Uploading... {uploadProgress}%</p>
-                <Progress value={uploadProgress} className="h-2" />
+        {/* Two input options */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+
+          {/* Option A — Local file path */}
+          <Card data-testid="card-option-local">
+            <CardContent className="p-5 flex flex-col gap-3 h-full">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded bg-accent flex items-center justify-center shrink-0">
+                  <HardDrive className="w-4 h-4 text-accent-foreground" />
+                </div>
+                <span className="font-semibold text-sm text-foreground">Local file path</span>
               </div>
-            </>
-          ) : (
-            <>
-              <UploadIcon className={cn("w-8 h-8", isDragging ? "text-primary" : "text-muted-foreground")} />
-              <div>
-                <p className="font-medium text-foreground text-sm">Drop your DJ set here</p>
-                <p className="text-xs text-muted-foreground mt-1">MP4, MOV, AVI, WebM, MKV — up to 20 GB</p>
-                <p className="text-xs text-muted-foreground">Works with full 1-hour sets and shorter clips</p>
+
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Paste the full path to your video file. The app reads it directly from your disk — no transfer, no waiting.
+              </p>
+
+              {/* Disclaimer */}
+              <div className="flex gap-2 bg-accent/50 rounded-md p-2.5">
+                <Info className="w-3.5 h-3.5 text-accent-foreground shrink-0 mt-0.5" />
+                <div className="text-xs text-accent-foreground leading-relaxed">
+                  <span className="font-medium">Requires local setup.</span> Only works when this app is running on the same computer as your video files (e.g. your own machine, not a remote server).
+                </div>
               </div>
-              <Button size="sm" variant="outline" data-testid="button-browse-files">
-                Browse files
-              </Button>
-            </>
-          )}
+
+              <div className="flex flex-col gap-2 mt-auto pt-1">
+                <Input
+                  placeholder="/Users/you/sets/ibiza-set.mp4"
+                  value={localPath}
+                  onChange={e => setLocalPath(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && localPath.trim() && localPathMutation.mutate(localPath)}
+                  data-testid="input-local-path"
+                />
+                <Button
+                  className="w-full gap-2"
+                  disabled={!localPath.trim() || localPathMutation.isPending}
+                  onClick={() => localPathMutation.mutate(localPath)}
+                  data-testid="button-add-local-path"
+                >
+                  {localPathMutation.isPending
+                    ? <Loader2 className="w-4 h-4 animate-spin" />
+                    : <FolderOpen className="w-4 h-4" />}
+                  Add file
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Option B — Upload */}
+          <Card data-testid="card-option-upload">
+            <CardContent className="p-5 flex flex-col gap-3 h-full">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded bg-primary/10 flex items-center justify-center shrink-0">
+                  <Wifi className="w-4 h-4 text-primary" />
+                </div>
+                <span className="font-semibold text-sm text-foreground">Upload file</span>
+              </div>
+
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Drag and drop your video or browse to select it. The file is transferred to the server before processing starts.
+              </p>
+
+              {/* Disclaimer */}
+              <div className="flex gap-2 bg-muted/60 rounded-md p-2.5">
+                <Info className="w-3.5 h-3.5 text-muted-foreground shrink-0 mt-0.5" />
+                <div className="text-xs text-muted-foreground leading-relaxed">
+                  <span className="font-medium">Works from anywhere.</span> Use from any browser on any device. Large files (5–10 GB) may take several minutes to transfer depending on your connection speed.
+                </div>
+              </div>
+
+              <div
+                onDrop={onDrop}
+                onDragOver={onDragOver}
+                onDragLeave={onDragLeave}
+                onClick={() => !uploading && fileInputRef.current?.click()}
+                className={cn(
+                  "mt-auto border-2 border-dashed rounded-md p-5 text-center cursor-pointer transition-colors flex flex-col items-center gap-3",
+                  isDragging
+                    ? "border-primary bg-primary/5"
+                    : "border-border bg-muted/30 hover:bg-muted/50 hover:border-muted-foreground/40"
+                )}
+                data-testid="drop-zone-upload"
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="video/*,.mp4,.mov,.avi,.webm,.mkv"
+                  className="hidden"
+                  onChange={e => handleFiles(e.target.files)}
+                  data-testid="input-video-file"
+                />
+                {uploading ? (
+                  <>
+                    <Loader2 className="w-6 h-6 text-primary animate-spin" />
+                    <div className="flex flex-col gap-1.5 w-full">
+                      <p className="text-xs font-medium text-foreground">Uploading... {uploadProgress}%</p>
+                      <Progress value={uploadProgress} className="h-1.5" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <UploadIcon className={cn("w-6 h-6", isDragging ? "text-primary" : "text-muted-foreground")} />
+                    <div>
+                      <p className="text-xs font-medium text-foreground">Drop here or browse</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">MP4, MOV, AVI, WebM, MKV — up to 20 GB</p>
+                    </div>
+                    <Button size="sm" variant="outline" data-testid="button-browse-files">
+                      Browse files
+                    </Button>
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Uploads list */}
