@@ -454,7 +454,7 @@ export default function Home() {
               <UploadIcon className={cn("w-8 h-8", isDragging ? "text-primary" : "text-muted-foreground")} />
               <div>
                 <p className="font-medium text-foreground text-sm">Drop your DJ set here</p>
-                <p className="text-xs text-muted-foreground mt-1">MP4, MOV, AVI, WebM, MKV — up to 2 GB</p>
+                <p className="text-xs text-muted-foreground mt-1">MP4, MOV, AVI, WebM, MKV — up to 20 GB</p>
                 <p className="text-xs text-muted-foreground">Works with full 1-hour sets and shorter clips</p>
               </div>
               <Button size="sm" variant="outline" data-testid="button-browse-files">
