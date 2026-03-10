@@ -2,7 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Input } from "@/components/ui/input";
@@ -34,19 +34,6 @@ import {
 const CLIP_DURATIONS = [15, 20, 30, 45] as const;
 type ClipDuration = typeof CLIP_DURATIONS[number];
 
-function HighlightBadge({ type }: { type: string }) {
-  const config: Record<string, { label: string; className: string }> = {
-    drop:       { label: "Drop",       className: "bg-primary/10 text-primary" },
-    transition: { label: "Transition", className: "bg-chart-2/10 text-chart-2" },
-    build:      { label: "Build",      className: "bg-chart-4/10 text-chart-4" },
-  };
-  const c = config[type] ?? { label: type, className: "bg-muted text-muted-foreground" };
-  return (
-    <Badge variant="outline" className={cn("text-xs font-medium", c.className)}>
-      {c.label}
-    </Badge>
-  );
-}
 
 function StatusBadge({ status }: { status: string }) {
   const map: Record<string, { icon: React.ReactNode; label: string; className: string }> = {
@@ -74,7 +61,6 @@ function ClipCard({ clip, onDelete }: { clip: Clip; onDelete: (id: string) => vo
       <CardContent className="p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <HighlightBadge type={clip.highlightType} />
             <span className="text-sm font-medium text-foreground">
               {clip.duration}s clip
             </span>
@@ -153,6 +139,7 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
   const { toast } = useToast();
   const [selectedDurations, setSelectedDurations] = useState<ClipDuration[]>([15]);
   const [maxClips, setMaxClips] = useState<string>("");
+  const [buildUp, setBuildUp] = useState<"none" | "short" | "medium" | "long" | "auto">("short");
   const [showClips, setShowClips] = useState(false);
   const isGenerating = upload.status === "generating";
 
@@ -192,6 +179,7 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
       apiRequest("POST", `/api/uploads/${upload.id}/generate`, {
         durations: selectedDurations,
         maxClips: maxClipsNumber > 0 ? maxClipsNumber : 0,
+        buildUp,
       }),
     onSuccess: () => {
       const limitText = maxClipsNumber > 0 ? `top ${maxClipsNumber}` : "all";
@@ -290,6 +278,36 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
                 className="w-32 h-8 text-sm"
                 data-testid={`input-max-clips-${upload.id}`}
               />
+            </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Build-up before the drop</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {([
+                  { value: "none",   label: "None" },
+                  { value: "short",  label: "Short" },
+                  { value: "medium", label: "Medium" },
+                  { value: "long",   label: "Long" },
+                  { value: "auto",   label: "DJ Choice" },
+                ] as const).map(opt => (
+                  <Button
+                    key={opt.value}
+                    variant={buildUp === opt.value ? "default" : "outline"}
+                    size="sm"
+                    className="text-xs h-7 px-2.5"
+                    onClick={() => setBuildUp(opt.value)}
+                    data-testid={`button-buildup-${opt.value}-${upload.id}`}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground/70 mt-1.5">
+                {buildUp === "none"   && "Clip starts at the drop. No build-up included."}
+                {buildUp === "short"  && "~20% of clip is build-up before the drop."}
+                {buildUp === "medium" && "~40% of clip is build-up before the drop."}
+                {buildUp === "long"   && "~65% of clip is build-up before the drop."}
+                {buildUp === "auto"   && "Automatically longer build-up for stronger peaks, shorter for the rest."}
+              </p>
             </div>
             <Button
               className="gap-2"

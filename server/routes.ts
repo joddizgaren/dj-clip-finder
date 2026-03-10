@@ -8,6 +8,7 @@ import {
   analyzeVideoFile,
   extractClip,
   computeClipTimes,
+  type BuildUp,
 } from "./audioAnalyzer";
 
 const UPLOAD_DIR = path.resolve("uploads");
@@ -148,14 +149,20 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const found = await storage.getUpload(req.params.id);
     if (!found) return res.status(404).json({ message: "Upload not found" });
 
-    // Delete clip files
+    // Delete clip files (always safe — these are always app-owned)
     const uploadClips = await storage.getClipsByUpload(req.params.id);
     for (const clip of uploadClips) {
       try { fs.unlinkSync(clip.clipPath); } catch {}
     }
 
-    // Delete video file
-    try { fs.unlinkSync(found.filePath); } catch {}
+    // Only delete the video file if it lives inside the app's own uploads dir.
+    // Local-path registrations reference the user's original file — never delete those.
+    const resolvedFilePath = path.resolve(found.filePath);
+    const isAppOwnedFile = resolvedFilePath.startsWith(UPLOAD_DIR + path.sep) ||
+                           resolvedFilePath.startsWith(UPLOAD_DIR + "/");
+    if (isAppOwnedFile) {
+      try { fs.unlinkSync(found.filePath); } catch {}
+    }
 
     await storage.deleteUpload(req.params.id);
     res.status(204).send();
@@ -185,11 +192,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
     }
 
-    const { durations, maxClips } = req.body;
+    const { durations, maxClips, buildUp } = req.body;
     if (!durations || !Array.isArray(durations) || durations.length === 0) {
       return res.status(400).json({ message: "Please select at least one clip duration" });
     }
     const maxClipsLimit: number = typeof maxClips === "number" && maxClips > 0 ? maxClips : 0;
+    const validBuildUps: BuildUp[] = ["none", "short", "medium", "long", "auto"];
+    const resolvedBuildUp: BuildUp = validBuildUps.includes(buildUp) ? buildUp : "short";
 
     // Respond quickly, generate asynchronously
     res.json({ message: "Clip generation started", uploadId: found.id });
@@ -228,7 +237,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         // Generate one clip per peak per selected duration
         for (const dur of durations as number[]) {
           for (const peak of peaksToUse) {
-            const times = computeClipTimes(peak, dur, analysis.duration);
+            const times = computeClipTimes(peak, dur, analysis.duration, resolvedBuildUp);
             if (!times) continue;
 
             const clipFilename = `clip_${found.id}_${dur}s_${Math.floor(peak.time)}s.mp4`;
