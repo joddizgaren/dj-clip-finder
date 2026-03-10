@@ -136,12 +136,12 @@ function derivative(data: { time: number; energy: number }[]): number[] {
 
 /**
  * Compute an adaptive minimum gap between peaks based on video duration.
- * Short videos: 45s gap. Long sets: up to 120s gap.
+ * Short videos: minimum 10s gap. Long sets: up to 120s gap.
  * This prevents clusters of clips in the same section of a long set.
  */
 function adaptiveMinGap(videoDurationSecs: number): number {
-  // 1.5% of video duration, clamped between 45s and 120s
-  return Math.min(120, Math.max(45, Math.floor(videoDurationSecs * 0.015)));
+  // 1.5% of video duration, clamped between 10s and 120s
+  return Math.min(120, Math.max(10, Math.floor(videoDurationSecs * 0.015)));
 }
 
 /**
