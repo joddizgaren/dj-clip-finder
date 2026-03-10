@@ -185,10 +185,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
     }
 
-    const { durations } = req.body;
+    const { durations, maxClips } = req.body;
     if (!durations || !Array.isArray(durations) || durations.length === 0) {
       return res.status(400).json({ message: "Please select at least one clip duration" });
     }
+    const maxClipsLimit: number = typeof maxClips === "number" && maxClips > 0 ? maxClips : 0;
 
     // Respond quickly, generate asynchronously
     res.json({ message: "Clip generation started", uploadId: found.id });
@@ -217,14 +218,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         }
         await storage.deleteClipsByUpload(found.id);
 
+        // Apply max clips limit (peaks are already sorted best-first)
+        const peaksToUse = maxClipsLimit > 0
+          ? analysis.peaks.slice(0, maxClipsLimit)
+          : analysis.peaks;
+
         const created: string[] = [];
 
+        // Generate one clip per peak per selected duration
         for (const dur of durations as number[]) {
-          // Pick the best available peak for this duration (highest energy, not already used for same duration)
-          const usedTimesForDur = new Set<number>();
-          for (const peak of analysis.peaks) {
-            if (usedTimesForDur.has(peak.time)) continue;
-
+          for (const peak of peaksToUse) {
             const times = computeClipTimes(peak, dur, analysis.duration);
             if (!times) continue;
 
@@ -243,9 +246,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
               energyLevel: peak.energyLevel,
             });
 
-            usedTimesForDur.add(peak.time);
             created.push(clipFilename);
-            break; // one clip per duration
+            console.log(`  Encoded clip ${created.length}: ${dur}s at ${Math.floor(peak.time)}s`);
           }
         }
 

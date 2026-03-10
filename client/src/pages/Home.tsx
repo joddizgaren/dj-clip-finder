@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -152,15 +152,28 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [selectedDurations, setSelectedDurations] = useState<ClipDuration[]>([15]);
+  const [maxClips, setMaxClips] = useState<string>("");
   const [showClips, setShowClips] = useState(false);
+  const isGenerating = upload.status === "generating";
 
-  const { data: clips = [], refetch: refetchClips } = useQuery<Clip[]>({
+  const { data: clips = [] } = useQuery<Clip[]>({
     queryKey: ["/api/uploads", upload.id, "clips"],
     queryFn: () => fetch(`/api/uploads/${upload.id}/clips`).then(r => r.json()),
-    enabled: showClips || upload.status === "analyzed",
+    // Poll during generation so clips appear as they're encoded
+    refetchInterval: isGenerating ? 4000 : false,
+    enabled: upload.status === "analyzed" || isGenerating || showClips,
   });
 
-  // Poll for status while processing
+  // Auto-expand clips section when clips start appearing
+  const prevClipCount = useRef(0);
+  useEffect(() => {
+    if (clips.length > 0 && prevClipCount.current === 0) {
+      setShowClips(true);
+    }
+    prevClipCount.current = clips.length;
+  }, [clips.length]);
+
+  // Poll for status while processing or generating
   useQuery<Upload>({
     queryKey: ["/api/uploads", upload.id],
     queryFn: () => fetch(`/api/uploads/${upload.id}`).then(r => r.json()),
@@ -169,20 +182,24 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
       if (data?.status === "processing" || data?.status === "generating") return 3000;
       return false;
     },
-    enabled: upload.status === "processing" || upload.status === "generating",
+    enabled: upload.status === "processing" || isGenerating,
   });
+
+  const maxClipsNumber = maxClips.trim() === "" ? 0 : parseInt(maxClips, 10);
 
   const generateMutation = useMutation({
     mutationFn: () =>
-      apiRequest("POST", `/api/uploads/${upload.id}/generate`, { durations: selectedDurations }),
+      apiRequest("POST", `/api/uploads/${upload.id}/generate`, {
+        durations: selectedDurations,
+        maxClips: maxClipsNumber > 0 ? maxClipsNumber : 0,
+      }),
     onSuccess: () => {
-      toast({ title: "Generating clips...", description: "This may take a moment for long videos." });
+      const limitText = maxClipsNumber > 0 ? `top ${maxClipsNumber}` : "all";
+      toast({
+        title: "Generating clips…",
+        description: `Encoding ${limitText} highlight moments. Clips will appear as they're ready.`,
+      });
       queryClient.invalidateQueries({ queryKey: ["/api/uploads"] });
-      setTimeout(() => {
-        setShowClips(true);
-        refetchClips();
-        queryClient.invalidateQueries({ queryKey: ["/api/uploads", upload.id, "clips"] });
-      }, 3000);
     },
     onError: (err: Error) => {
       toast({ title: "Generation failed", description: err.message, variant: "destructive" });
@@ -260,6 +277,20 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
                 ))}
               </div>
             </div>
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-1">
+                Maximum clips <span className="font-normal text-muted-foreground/70">(leave blank for all)</span>
+              </p>
+              <Input
+                type="number"
+                min={1}
+                placeholder="e.g. 10"
+                value={maxClips}
+                onChange={e => setMaxClips(e.target.value)}
+                className="w-32 h-8 text-sm"
+                data-testid={`input-max-clips-${upload.id}`}
+              />
+            </div>
             <Button
               className="gap-2"
               disabled={selectedDurations.length === 0 || generateMutation.isPending}
@@ -271,8 +302,22 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
               ) : (
                 <Scissors className="w-4 h-4" />
               )}
-              Generate {selectedDurations.length > 0 ? selectedDurations.join(", ") + "s" : ""} clips
+              {maxClipsNumber > 0
+                ? `Generate top ${maxClipsNumber} × ${selectedDurations.join(", ")}s`
+                : `Generate all × ${selectedDurations.join(", ")}s`}
             </Button>
+          </div>
+        )}
+
+        {/* Generating progress */}
+        {isGenerating && (
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
+            <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+            <span>
+              {clips.length > 0
+                ? `${clips.length} clip${clips.length > 1 ? "s" : ""} ready so far — still encoding…`
+                : "Analyzing audio and encoding clips…"}
+            </span>
           </div>
         )}
 
@@ -287,7 +332,7 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
             >
               <span className="flex items-center gap-2">
                 <Scissors className="w-4 h-4 text-primary" />
-                {clips.length} clip{clips.length > 1 ? "s" : ""} generated
+                {clips.length} clip{clips.length > 1 ? "s" : ""} {isGenerating ? "so far" : "generated"}
               </span>
               {showClips ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </Button>

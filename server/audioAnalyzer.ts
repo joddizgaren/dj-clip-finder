@@ -254,7 +254,11 @@ export async function extractClip(
     "-i", inputPath,
     "-t", String(duration),
     "-c:v", "libx264",
+    "-profile:v", "high",
+    "-level:v", "4.0",
+    "-pix_fmt", "yuv420p",   // required for Windows Media Player / Movies & TV
     "-c:a", "aac",
+    "-b:a", "128k",
     "-preset", "fast",
     "-movflags", "+faststart",
     outputPath,
