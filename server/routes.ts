@@ -1,98 +1,114 @@
 import type { Express } from "express";
 import type { Server } from "http";
-import multer from "multer";
 import path from "path";
 import fs from "fs";
+import os from "os";
 import { storage } from "./storage";
 import {
   analyzeVideoFile,
   extractClip,
   computeClipTimes,
+  getVideoInfo,
   type BuildUp,
+  type Sensitivity,
+  type RecordingType,
+  type OutputFormat,
+  type CropMethod,
 } from "./audioAnalyzer";
+import type { PeaksCache } from "@shared/schema";
 
-const UPLOAD_DIR = path.resolve("uploads");
 const CLIPS_DIR = path.resolve("clips");
 
-// Ensure directories exist
-if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
 if (!fs.existsSync(CLIPS_DIR)) fs.mkdirSync(CLIPS_DIR, { recursive: true });
 
-const upload = multer({
-  dest: UPLOAD_DIR,
-  limits: { fileSize: 20 * 1024 * 1024 * 1024 }, // 20GB
-  fileFilter: (_req, file, cb) => {
-    const allowed = ["video/mp4", "video/quicktime", "video/x-msvideo", "video/webm", "video/x-matroska"];
-    if (allowed.includes(file.mimetype) || file.originalname.match(/\.(mp4|mov|avi|webm|mkv)$/i)) {
-      cb(null, true);
-    } else {
-      cb(new Error("Only video files are allowed"));
-    }
-  },
-});
+// ── helpers ──────────────────────────────────────────────────────────────────
+
+const VIDEO_EXTS = new Set([".mp4", ".mov", ".avi", ".webm", ".mkv"]);
+
+function isVideoFile(name: string) {
+  return VIDEO_EXTS.has(path.extname(name).toLowerCase());
+}
+
+/** Build a human-readable clip filename: basename_14m23s_20s.mp4 */
+function buildClipFilename(sourceFilename: string, peakTimeSec: number, durSec: number): string {
+  const base = path.basename(sourceFilename, path.extname(sourceFilename))
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .replace(/\s+/g, "_")
+    .slice(0, 24);
+
+  const totalSec = Math.floor(peakTimeSec);
+  const mm = String(Math.floor(totalSec / 60)).padStart(2, "0");
+  const ss = String(totalSec % 60).padStart(2, "0");
+  return `${base}_${mm}m${ss}s_${durSec}s.mp4`;
+}
+
+// ── routes ───────────────────────────────────────────────────────────────────
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
+
+  // === FILE BROWSER ===
+
+  app.get("/api/browse", (req, res) => {
+    try {
+      const requestedPath = typeof req.query.path === "string"
+        ? req.query.path
+        : os.homedir();
+
+      if (!fs.existsSync(requestedPath)) {
+        return res.status(404).json({ message: "Path not found" });
+      }
+
+      const stat = fs.statSync(requestedPath);
+      if (!stat.isDirectory()) {
+        return res.status(400).json({ message: "Path is not a directory" });
+      }
+
+      const entries = fs.readdirSync(requestedPath, { withFileTypes: true });
+      const dirs: string[] = [];
+      const files: { name: string; size: number; fullPath: string }[] = [];
+
+      for (const entry of entries) {
+        try {
+          if (entry.isDirectory()) {
+            dirs.push(entry.name);
+          } else if (entry.isFile() && isVideoFile(entry.name)) {
+            const fullPath = path.join(requestedPath, entry.name);
+            const s = fs.statSync(fullPath);
+            files.push({ name: entry.name, size: s.size, fullPath });
+          }
+        } catch {
+          // skip inaccessible entries
+        }
+      }
+
+      dirs.sort((a, b) => a.localeCompare(b));
+      files.sort((a, b) => a.name.localeCompare(b.name));
+
+      // Compute parent path (null at filesystem root)
+      const parentPath = path.dirname(requestedPath);
+      const parent = parentPath === requestedPath ? null : parentPath;
+
+      res.json({ path: requestedPath, parent, dirs, files });
+    } catch (err) {
+      res.status(500).json({ message: "Browse failed: " + String(err) });
+    }
+  });
+
   // === UPLOADS ===
 
-  // List all uploads
   app.get("/api/uploads", async (_req, res) => {
     const all = await storage.getUploads();
     res.json(all);
   });
 
-  // Get single upload
   app.get("/api/uploads/:id", async (req, res) => {
     const found = await storage.getUpload(req.params.id);
     if (!found) return res.status(404).json({ message: "Upload not found" });
     res.json(found);
   });
 
-  // Upload a new video and kick off analysis
-  app.post("/api/uploads", upload.single("video"), async (req, res) => {
-    if (!req.file) {
-      return res.status(400).json({ message: "No video file provided" });
-    }
-
-    // Rename to keep original extension
-    const ext = path.extname(req.file.originalname) || ".mp4";
-    const newPath = req.file.path + ext;
-    fs.renameSync(req.file.path, newPath);
-
-    try {
-      // Create upload record first with a placeholder duration
-      const record = await storage.createUpload({
-        filename: req.file.originalname,
-        filePath: newPath,
-        duration: 0,
-      });
-
-      // Respond immediately so the client can start polling
-      res.status(201).json({ ...record, status: "processing" });
-
-      // Run analysis asynchronously
-      (async () => {
-        try {
-          const analysis = await analyzeVideoFile(newPath);
-          await storage.updateUpload(record.id, {
-            duration: analysis.duration,
-            status: "analyzed",
-          });
-        } catch (err) {
-          console.error("Analysis failed:", err);
-          await storage.updateUpload(record.id, {
-            status: "error",
-            error: String(err),
-          });
-        }
-      })();
-    } catch (err) {
-      // Clean up temp file
-      try { fs.unlinkSync(newPath); } catch {}
-      res.status(500).json({ message: "Upload failed: " + String(err) });
-    }
-  });
-
-  // Register a video by local file path (no upload transfer)
+  // Register a video by local file path (no file transfer)
   app.post("/api/uploads/local", async (req, res) => {
     const { filePath } = req.body;
     if (!filePath || typeof filePath !== "string") {
@@ -101,7 +117,9 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
     const trimmed = filePath.trim();
     if (!fs.existsSync(trimmed)) {
-      return res.status(400).json({ message: "File not found at that path. Make sure the app is running on the same machine as your video files." });
+      return res.status(400).json({
+        message: "File not found at that path. Make sure the app is running on the same computer as your video files.",
+      });
     }
 
     const stat = fs.statSync(trimmed);
@@ -110,7 +128,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
 
     const ext = path.extname(trimmed).toLowerCase();
-    if (![".mp4", ".mov", ".avi", ".webm", ".mkv"].includes(ext)) {
+    if (!VIDEO_EXTS.has(ext)) {
       return res.status(400).json({ message: "File must be a video (MP4, MOV, AVI, WebM, MKV)." });
     }
 
@@ -123,12 +141,14 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       res.status(201).json({ ...record, status: "processing" });
 
-      // Run analysis asynchronously
+      // Run analysis asynchronously to get duration + video dimensions
       (async () => {
         try {
-          const analysis = await analyzeVideoFile(trimmed);
+          const info = await getVideoInfo(trimmed);
           await storage.updateUpload(record.id, {
-            duration: analysis.duration,
+            duration: Math.floor(info.duration),
+            videoWidth: info.width,
+            videoHeight: info.height,
             status: "analyzed",
           });
         } catch (err) {
@@ -149,32 +169,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const found = await storage.getUpload(req.params.id);
     if (!found) return res.status(404).json({ message: "Upload not found" });
 
-    // Delete clip files (always safe — these are always app-owned)
     const uploadClips = await storage.getClipsByUpload(req.params.id);
     for (const clip of uploadClips) {
       try { fs.unlinkSync(clip.clipPath); } catch {}
     }
 
-    // Only delete the video file if it lives inside the app's own uploads dir.
-    // Local-path registrations reference the user's original file — never delete those.
-    const resolvedFilePath = path.resolve(found.filePath);
-    const isAppOwnedFile = resolvedFilePath.startsWith(UPLOAD_DIR + path.sep) ||
-                           resolvedFilePath.startsWith(UPLOAD_DIR + "/");
-    if (isAppOwnedFile) {
-      try { fs.unlinkSync(found.filePath); } catch {}
-    }
-
+    // Never delete the user's original video — only delete clips from our clips/ dir
     await storage.deleteUpload(req.params.id);
     res.status(204).send();
   });
 
   // === CLIPS ===
 
-  // List clips for an upload
   app.get("/api/uploads/:uploadId/clips", async (req, res) => {
     const found = await storage.getUpload(req.params.uploadId);
     if (!found) return res.status(404).json({ message: "Upload not found" });
-
     const uploadClips = await storage.getClipsByUpload(req.params.uploadId);
     res.json(uploadClips);
   });
@@ -188,62 +197,101 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return res.status(400).json({
         message: found.status === "processing"
           ? "Video is still being analyzed. Please wait."
+          : found.status === "generating"
+          ? "Already generating clips. Please wait."
           : "Video analysis failed. Cannot generate clips.",
       });
     }
 
-    const { durations, maxClips, buildUp } = req.body;
+    const { durations, maxClips, buildUp, sensitivity, recordingType, outputFormat, cropMethod } = req.body;
+
     if (!durations || !Array.isArray(durations) || durations.length === 0) {
       return res.status(400).json({ message: "Please select at least one clip duration" });
     }
+
     const maxClipsLimit: number = typeof maxClips === "number" && maxClips > 0 ? maxClips : 0;
     const validBuildUps: BuildUp[] = ["none", "short", "medium", "long", "auto"];
     const resolvedBuildUp: BuildUp = validBuildUps.includes(buildUp) ? buildUp : "short";
+    const resolvedSensitivity: Sensitivity = ["conservative", "balanced", "aggressive"].includes(sensitivity)
+      ? sensitivity : "balanced";
+    const resolvedRecordingType: RecordingType = ["cable", "mic", "auto"].includes(recordingType)
+      ? recordingType : "auto";
+    const resolvedOutputFormat: OutputFormat = ["original", "9:16", "3:4", "4:5", "1:1", "16:9"].includes(outputFormat)
+      ? outputFormat : "original";
+    const resolvedCropMethod: CropMethod = cropMethod === "crop" ? "crop" : "blur";
 
-    // Respond quickly, generate asynchronously
     res.json({ message: "Clip generation started", uploadId: found.id });
-
-    // Mark as generating clips
     await storage.updateUpload(found.id, { status: "generating" });
 
     (async () => {
       try {
-        // Re-analyze the file to get fresh peaks
-        const analysis = await analyzeVideoFile(found.filePath);
+        // Check peak cache — skip re-analysis if sensitivity & recording type match
+        let peaks: any[];
+        const cache = found.peaksCache as PeaksCache | null | undefined;
+        const cacheValid =
+          cache != null &&
+          Array.isArray(cache.peaks) &&
+          cache.peaks.length > 0 &&
+          cache.sensitivity === resolvedSensitivity &&
+          cache.recordingType === resolvedRecordingType;
 
-        if (analysis.peaks.length === 0) {
+        if (cacheValid && cache) {
+          console.log(`Using cached ${cache.peaks.length} peaks for upload ${found.id}`);
+          peaks = cache.peaks;
+        } else {
+          console.log(`Re-analyzing upload ${found.id} (sensitivity=${resolvedSensitivity}, recording=${resolvedRecordingType})`);
+          const analysis = await analyzeVideoFile(found.filePath, resolvedSensitivity, resolvedRecordingType);
+          peaks = analysis.peaks;
+
+          // Cache the new peaks
+          const newCache: PeaksCache = {
+            peaks,
+            sensitivity: resolvedSensitivity,
+            recordingType: resolvedRecordingType,
+          };
+          await storage.updateUpload(found.id, {
+            peaksCache: newCache,
+            duration: analysis.duration,
+          });
+        }
+
+        if (peaks.length === 0) {
           await storage.updateUpload(found.id, {
             status: "error",
-            error: "No highlight moments could be detected in this recording. The audio energy may be too consistent throughout the set for automatic detection. Try a recording with more dynamic range between quiet and loud sections.",
+            error: "No highlight moments could be detected in this recording. The audio energy may be too consistent throughout the set. Try 'Aggressive' sensitivity or a recording with more dynamic range.",
           });
-          console.log(`No peaks found for upload ${found.id} — marked as error.`);
           return;
         }
 
-        // Delete existing clips for this upload
+        // Delete existing clips
         const existing = await storage.getClipsByUpload(found.id);
         for (const c of existing) {
           try { fs.unlinkSync(c.clipPath); } catch {}
         }
         await storage.deleteClipsByUpload(found.id);
 
-        // Apply max clips limit (peaks are already sorted best-first)
-        const peaksToUse = maxClipsLimit > 0
-          ? analysis.peaks.slice(0, maxClipsLimit)
-          : analysis.peaks;
+        const refUpload = await storage.getUpload(found.id);
+        const videoDuration = refUpload?.duration ?? found.duration;
+        const srcWidth  = refUpload?.videoWidth  ?? found.videoWidth  ?? 1920;
+        const srcHeight = refUpload?.videoHeight ?? found.videoHeight ?? 1080;
 
-        const created: string[] = [];
+        const peaksToUse = maxClipsLimit > 0 ? peaks.slice(0, maxClipsLimit) : peaks;
+        let count = 0;
 
-        // Generate one clip per peak per selected duration
         for (const dur of durations as number[]) {
           for (const peak of peaksToUse) {
-            const times = computeClipTimes(peak, dur, analysis.duration, resolvedBuildUp);
+            const times = computeClipTimes(peak, dur, videoDuration, resolvedBuildUp);
             if (!times) continue;
 
-            const clipFilename = `clip_${found.id}_${dur}s_${Math.floor(peak.time)}s.mp4`;
+            const clipFilename = buildClipFilename(found.filename, peak.time, dur);
             const clipPath = path.join(CLIPS_DIR, clipFilename);
 
-            await extractClip(found.filePath, clipPath, times.startTime, times.endTime - times.startTime);
+            await extractClip(found.filePath, clipPath, times.startTime, times.endTime - times.startTime, {
+              srcWidth,
+              srcHeight,
+              outputFormat: resolvedOutputFormat,
+              cropMethod: resolvedCropMethod,
+            });
 
             await storage.createClip({
               uploadId: found.id,
@@ -253,15 +301,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
               clipPath,
               highlightType: peak.type,
               energyLevel: peak.energyLevel,
+              outputFormat: resolvedOutputFormat,
             });
 
-            created.push(clipFilename);
-            console.log(`  Encoded clip ${created.length}: ${dur}s at ${Math.floor(peak.time)}s`);
+            count++;
+            console.log(`  Encoded clip ${count}: ${dur}s at ${Math.floor(peak.time)}s (${resolvedOutputFormat})`);
           }
         }
 
         await storage.updateUpload(found.id, { status: "analyzed" });
-        console.log(`Generated ${created.length} clips for upload ${found.id}`);
+        console.log(`Generated ${count} clips for upload ${found.id}`);
       } catch (err) {
         console.error("Clip generation failed:", err);
         await storage.updateUpload(found.id, {
@@ -279,14 +328,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     if (!fs.existsSync(clip.clipPath)) {
       return res.status(404).json({ message: "Clip file not found on disk" });
     }
-
     const filename = path.basename(clip.clipPath);
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Type", "video/mp4");
     res.sendFile(path.resolve(clip.clipPath));
   });
 
-  // Stream clip for preview
+  // Stream clip for in-browser preview
   app.get("/api/clips/:clipId/stream", async (req, res) => {
     const clip = await storage.getClip(req.params.clipId);
     if (!clip) return res.status(404).json({ message: "Clip not found" });
@@ -304,7 +352,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
       const chunkSize = end - start + 1;
       const file = fs.createReadStream(clip.clipPath, { start, end });
-
       res.writeHead(206, {
         "Content-Range": `bytes ${start}-${end}/${fileSize}`,
         "Accept-Ranges": "bytes",
@@ -325,7 +372,6 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
   app.delete("/api/clips/:clipId", async (req, res) => {
     const clip = await storage.getClip(req.params.clipId);
     if (!clip) return res.status(404).json({ message: "Clip not found" });
-
     try { fs.unlinkSync(clip.clipPath); } catch {}
     await storage.deleteClip(req.params.clipId);
     res.status(204).send();

@@ -3,14 +3,17 @@ import { pgTable, text, varchar, integer, json, timestamp } from "drizzle-orm/pg
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// Upload represents a DJ set video upload
+// Upload represents a DJ set video registration
 export const uploads = pgTable("uploads", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   filename: text("filename").notNull(),
   filePath: text("file_path").notNull(),
   duration: integer("duration").notNull(), // in seconds
-  status: text("status").default("processing").notNull(), // processing, analyzed, error
+  videoWidth: integer("video_width"),      // pixels
+  videoHeight: integer("video_height"),    // pixels
+  status: text("status").default("processing").notNull(), // processing, analyzed, error, generating
   error: text("error"),
+  peaksCache: json("peaks_cache"),         // { peaks, sensitivity, recordingType } — null when not cached
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -24,8 +27,9 @@ export const clips = pgTable("clips", {
   endTime: integer("end_time").notNull(), // in seconds
   duration: integer("duration").notNull(), // 15, 20, 30, or 45
   clipPath: text("clip_path").notNull(),
-  highlightType: text("highlight_type").notNull(), // "drop", "transition", "build"
+  highlightType: text("highlight_type").notNull(),
   energyLevel: integer("energy_level").notNull(), // 0-100
+  outputFormat: text("output_format").default("original"), // original, 9:16, 3:4, 4:5, 1:1, 16:9
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -35,6 +39,7 @@ export const insertUploadSchema = createInsertSchema(uploads).omit({
   createdAt: true,
   status: true,
   error: true,
+  peaksCache: true,
 });
 
 export const insertClipSchema = createInsertSchema(clips).omit({
@@ -68,11 +73,30 @@ export interface PeakDetection {
 
 export interface ClipGenerationRequest {
   uploadId: string;
-  durations: (15 | 20 | 30 | 45)[]; // requested clip lengths
+  durations: (15 | 20 | 30 | 45)[];
+  sensitivity?: "conservative" | "balanced" | "aggressive";
+  recordingType?: "cable" | "mic" | "auto";
+  outputFormat?: "original" | "9:16" | "3:4" | "4:5" | "1:1" | "16:9";
+  cropMethod?: "blur" | "crop";
 }
 
 export interface ClipGenerationResponse {
   uploadId: string;
   clipsGenerated: number;
   clips: ClipResponse[];
+}
+
+// Peak cache stored in DB
+export interface PeaksCache {
+  peaks: PeakDetection[];
+  sensitivity: string;
+  recordingType: string;
+}
+
+// File browser response
+export interface BrowseResponse {
+  path: string;
+  parent: string | null;
+  dirs: string[];
+  files: { name: string; size: number; fullPath: string }[];
 }
