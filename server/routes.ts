@@ -93,15 +93,25 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       const ps = `
 Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
 $dialog = New-Object System.Windows.Forms.OpenFileDialog
 $dialog.Title  = "Select DJ Set Recording"
 $dialog.Filter = "Video Files|*.mp4;*.mov;*.avi;*.webm;*.mkv|All Files|*.*"
 $dialog.Multiselect = $false
-$null = $dialog.ShowDialog()
+$owner = New-Object System.Windows.Forms.Form
+$owner.TopMost = $true
+$owner.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
+$owner.Location = New-Object System.Drawing.Point(100, 100)
+$owner.Size = New-Object System.Drawing.Size(1, 1)
+$owner.ShowInTaskbar = $false
+$owner.Show()
+$owner.BringToFront()
+$null = $dialog.ShowDialog($owner)
+$owner.Dispose()
 if ($dialog.FileName) { Write-Output $dialog.FileName }
 `.trim();
 
-      const { stdout } = await execAsync("powershell", ["-NoProfile", "-Command", ps], {
+      const { stdout } = await execAsync("powershell", ["-NoProfile", "-STA", "-Command", ps], {
         timeout: 5 * 60 * 1000, // 5 min — plenty of time to browse
       });
 
