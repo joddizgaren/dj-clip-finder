@@ -27,6 +27,11 @@ export interface VideoInfo {
 
 /**
  * Get video metadata (duration, dimensions) using ffprobe.
+ *
+ * iPhone MOV files (and many Android recordings) store the actual frame data in
+ * landscape orientation (1920×1080) but include a rotation flag so players display
+ * it correctly as portrait. We check all three places ffprobe might report that
+ * rotation and swap width/height when needed.
  */
 export async function getVideoInfo(filePath: string): Promise<VideoInfo> {
   const { stdout } = await execFileAsync("ffprobe", [
@@ -39,10 +44,39 @@ export async function getVideoInfo(filePath: string): Promise<VideoInfo> {
   const info = JSON.parse(stdout);
   const videoStream = info.streams?.find((s: any) => s.codec_type === "video");
 
-  // Account for rotation metadata (phones often record 1920x1080 with a 90° rotation flag)
-  let width: number = videoStream?.width ?? 0;
+  let width: number  = videoStream?.width  ?? 0;
   let height: number = videoStream?.height ?? 0;
-  const rotation = Math.abs(parseInt(videoStream?.tags?.rotate ?? "0", 10));
+
+  // ── Detect rotation from multiple metadata locations ──────────────────────
+  let rotation = 0;
+
+  // Location 1: tags.rotate — used by older iPhones and some Android devices
+  if (videoStream?.tags?.rotate) {
+    rotation = Math.abs(parseInt(videoStream.tags.rotate, 10));
+  }
+
+  // Location 2: side_data_list / Display Matrix — used by modern iPhones (iOS 14+)
+  // ffprobe reports this as a negative angle (e.g. -90 means rotated 90° clockwise)
+  if (!rotation && Array.isArray(videoStream?.side_data_list)) {
+    for (const sd of videoStream.side_data_list) {
+      const sdType: string = sd.side_data_type ?? sd.type ?? "";
+      if (sdType.toLowerCase().includes("display matrix") && sd.rotation !== undefined) {
+        rotation = Math.abs(parseInt(sd.rotation, 10));
+        break;
+      }
+    }
+  }
+
+  // Location 3: top-level stream rotation field (some ffprobe builds expose this)
+  if (!rotation && videoStream?.rotation !== undefined) {
+    rotation = Math.abs(parseInt(videoStream.rotation, 10));
+  }
+
+  console.log(
+    `[getVideoInfo] raw=${width}×${height} rotation=${rotation}° → ` +
+    (rotation === 90 || rotation === 270 ? `display=${height}×${width}` : `display=${width}×${height}`)
+  );
+
   if (rotation === 90 || rotation === 270) {
     [width, height] = [height, width];
   }

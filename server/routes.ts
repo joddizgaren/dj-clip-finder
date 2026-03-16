@@ -47,6 +47,35 @@ function buildClipFilename(sourceFilename: string, peakTimeSec: number, durSec: 
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
 
+  // === VIDEO DIAGNOSTIC (dev helper) ===
+  // GET /api/diagnose-video?path=... — dumps raw ffprobe stream data for rotation debugging
+  app.get("/api/diagnose-video", async (req, res) => {
+    const { execFile } = await import("child_process");
+    const { promisify } = await import("util");
+    const execAsync = promisify(execFile);
+    const filePath = typeof req.query.path === "string" ? req.query.path : null;
+    if (!filePath || !fs.existsSync(filePath)) {
+      return res.status(400).json({ message: "Provide a valid ?path= parameter" });
+    }
+    try {
+      const { stdout } = await execAsync("ffprobe", [
+        "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", filePath,
+      ]);
+      const parsed = JSON.parse(stdout);
+      const vs = parsed.streams?.find((s: any) => s.codec_type === "video");
+      res.json({
+        raw_width:      vs?.width,
+        raw_height:     vs?.height,
+        tags_rotate:    vs?.tags?.rotate,
+        side_data_list: vs?.side_data_list,
+        stream_rotation: vs?.rotation,
+        format_tags:    parsed.format?.tags,
+      });
+    } catch (err) {
+      res.status(500).json({ message: String(err) });
+    }
+  });
+
   // === FILE BROWSER ===
 
   app.get("/api/browse", (req, res) => {

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter,
@@ -114,8 +115,9 @@ function FileBrowserModal({
   }, [open]);
 
   const handleDirClick = (dir: string) => {
-    const sep = browseData?.path.includes("\\") ? "\\" : "/";
-    setBrowsePath(browseData!.path + sep + dir);
+    if (!browseData) return;
+    const sep = browseData.path.includes("\\") ? "\\" : "/";
+    setBrowsePath(browseData.path + sep + dir);
     setSelectedFile(null);
   };
 
@@ -130,15 +132,18 @@ function FileBrowserModal({
     setSelectedFile(prev => prev === fullPath ? null : fullPath);
   };
 
-  // Build breadcrumb segments
-  const pathSep = browseData?.path.includes("\\") ? "\\" : "/";
+  // Build breadcrumb segments — guard against undefined while loading
+  const pathSep = browseData?.path?.includes("\\") ? "\\" : "/";
+  const isWin   = browseData?.path?.includes("\\") ?? false;
   const segments = browseData?.path
-    .split(pathSep)
-    .filter(Boolean)
-    .map((seg, i, arr) => ({
-      label: seg,
-      path: arr.slice(0, i + 1).join(pathSep) + (browseData.path.includes("\\") ? "" : ""),
-    })) ?? [];
+    ? browseData.path
+        .split(pathSep)
+        .filter(Boolean)
+        .map((seg, i, arr) => ({
+          label: seg,
+          path: (isWin ? "" : "/") + arr.slice(0, i + 1).join(pathSep),
+        }))
+    : [];
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
@@ -148,6 +153,9 @@ function FileBrowserModal({
             <FolderOpen className="w-4 h-4 text-primary" />
             Browse for video file
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Navigate your file system to find and select a video file.
+          </DialogDescription>
 
           {/* Breadcrumb */}
           {browseData && (
