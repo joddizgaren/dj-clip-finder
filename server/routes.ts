@@ -21,6 +21,9 @@ const CLIPS_DIR = path.resolve("clips");
 
 if (!fs.existsSync(CLIPS_DIR)) fs.mkdirSync(CLIPS_DIR, { recursive: true });
 
+// Tracks abort signals for active generation jobs: uploadId → { aborted }
+const activeGenerations = new Map<string, { aborted: boolean }>();
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 const VIDEO_EXTS = new Set([".mp4", ".mov", ".avi", ".webm", ".mkv"]);
@@ -243,6 +246,17 @@ if ($dialog.FileName) { Write-Output $dialog.FileName }
 
   // === CLIPS ===
 
+  // Stop an in-progress generation job
+  app.post("/api/uploads/:uploadId/stop", (req, res) => {
+    const signal = activeGenerations.get(req.params.uploadId);
+    if (signal) {
+      signal.aborted = true;
+      res.json({ message: "Stop signal sent" });
+    } else {
+      res.json({ message: "No active generation found" });
+    }
+  });
+
   app.get("/api/uploads/:uploadId/clips", async (req, res) => {
     const found = await storage.getUpload(req.params.uploadId);
     if (!found) return res.status(404).json({ message: "Upload not found" });
@@ -284,6 +298,9 @@ if ($dialog.FileName) { Write-Output $dialog.FileName }
 
     res.json({ message: "Clip generation started", uploadId: found.id });
     await storage.updateUpload(found.id, { status: "generating" });
+
+    const abortSignal = { aborted: false };
+    activeGenerations.set(found.id, abortSignal);
 
     (async () => {
       try {
@@ -338,10 +355,23 @@ if ($dialog.FileName) { Write-Output $dialog.FileName }
         const srcHeight = refUpload?.videoHeight ?? found.videoHeight ?? 1080;
 
         const peaksToUse = maxClipsLimit > 0 ? peaks.slice(0, maxClipsLimit) : peaks;
+
+        // Normalize energy so the best peak = 100%, giving meaningful relative scores
+        const maxEnergy = Math.max(...peaksToUse.map((p: any) => p.energyLevel));
+        const normalizedPeaks = peaksToUse.map((p: any) => ({
+          ...p,
+          energyLevel: maxEnergy > 0 ? Math.round((p.energyLevel / maxEnergy) * 100) : p.energyLevel,
+        }));
+
         let count = 0;
 
         for (const dur of durations as number[]) {
-          for (const peak of peaksToUse) {
+          for (const peak of normalizedPeaks) {
+            if (abortSignal.aborted) {
+              console.log(`Generation stopped by user after ${count} clips`);
+              break;
+            }
+
             const times = computeClipTimes(peak, dur, videoDuration, resolvedBuildUp);
             if (!times) continue;
 
@@ -369,11 +399,14 @@ if ($dialog.FileName) { Write-Output $dialog.FileName }
             count++;
             console.log(`  Encoded clip ${count}: ${dur}s at ${Math.floor(peak.time)}s (${resolvedOutputFormat})`);
           }
+          if (abortSignal.aborted) break;
         }
 
+        activeGenerations.delete(found.id);
         await storage.updateUpload(found.id, { status: "analyzed" });
         console.log(`Generated ${count} clips for upload ${found.id}`);
       } catch (err) {
+        activeGenerations.delete(found.id);
         console.error("Clip generation failed:", err);
         await storage.updateUpload(found.id, {
           status: "error",

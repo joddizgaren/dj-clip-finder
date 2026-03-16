@@ -1,7 +1,7 @@
 import { db } from "./db";
 import { uploads, clips } from "@shared/schema";
 import type { Upload, Clip, InsertUpload, InsertClip } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Uploads
@@ -52,7 +52,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(clips)
       .where(eq(clips.uploadId, uploadId))
-      .orderBy(clips.energyLevel);
+      .orderBy(desc(clips.energyLevel));
   }
 
   async getClip(id: string): Promise<Clip | undefined> {

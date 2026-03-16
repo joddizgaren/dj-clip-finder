@@ -41,6 +41,7 @@ import {
   Cable,
   Cpu,
   MonitorSmartphone,
+  Square,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────
@@ -342,7 +343,7 @@ function ClipCard({ clip, onDelete }: { clip: Clip; onDelete: (id: string) => vo
         {expanded && (
           <video
             controls
-            className="w-full rounded-md bg-black"
+            className="w-full rounded-md bg-black max-h-[360px] object-contain"
             src={`/api/clips/${clip.id}/stream`}
             data-testid={`video-preview-${clip.id}`}
           />
@@ -454,6 +455,14 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
   const deleteClipMutation = useMutation({
     mutationFn: (clipId: string) => apiRequest("DELETE", `/api/clips/${clipId}`),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/uploads", upload.id, "clips"] }),
+  });
+
+  const stopMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/uploads/${upload.id}/stop`, {}),
+    onSuccess: () => {
+      toast({ title: "Stopping…", description: "Finishing the current clip then stopping." });
+      queryClient.invalidateQueries({ queryKey: ["/api/uploads"] });
+    },
   });
 
   const toggleDuration = (d: ClipDuration) => {
@@ -745,15 +754,28 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
           </div>
         )}
 
-        {/* Generating progress */}
+        {/* Generating progress + stop button */}
         {isGenerating && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <Loader2 className="w-3 h-3 animate-spin shrink-0" />
-            <span>
-              {clips.length > 0
-                ? `${clips.length} clip${clips.length > 1 ? "s" : ""} ready so far — still encoding…`
-                : "Analysing audio and encoding clips…"}
-            </span>
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-1">
+              <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+              <span>
+                {clips.length > 0
+                  ? `${clips.length} clip${clips.length > 1 ? "s" : ""} ready so far — still encoding…`
+                  : "Analysing audio and encoding clips…"}
+              </span>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs h-7 shrink-0 text-destructive border-destructive/40 hover:bg-destructive/10"
+              onClick={() => stopMutation.mutate()}
+              disabled={stopMutation.isPending}
+              data-testid={`button-stop-${upload.id}`}
+            >
+              <Square className="w-3 h-3" />
+              Stop
+            </Button>
           </div>
         )}
 
