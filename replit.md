@@ -33,7 +33,8 @@ A web application that automatically detects highlight moments (drops, peaks) in
 
 ## API Routes
 
-- `GET /api/browse?path=<dir>` — Server-side file browser (lists dirs + video files)
+- `POST /api/browse-native` — Opens native Windows OpenFileDialog (PowerShell); returns `{ filePath }`. 400 on non-Windows → frontend falls back to tree browser
+- `GET /api/browse?path=<dir>` — Server-side tree file browser (fallback for non-Windows)
 - `GET /api/uploads` — List all uploads
 - `POST /api/uploads/local` — Register a local file path (no transfer)
 - `GET /api/uploads/:id` — Get single upload (used for polling status)

@@ -392,6 +392,7 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("original");
   const [cropMethod, setCropMethod]     = useState<CropMethod>("blur");
   const [showClips, setShowClips]       = useState(false);
+  const [showAdvanced, setShowAdvanced] = useState(false);
 
   const isGenerating = upload.status === "generating";
 
@@ -562,139 +563,6 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
               </p>
             </div>
 
-            {/* Recording type */}
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Recording type</p>
-              <div className="flex gap-1.5 flex-wrap">
-                {([
-                  { value: "cable", label: "Cable-in",     icon: <Cable className="w-3 h-3" />,     desc: "Direct line-in from mixer. Best bass detection (50% bass weight)." },
-                  { value: "mic",   label: "Mic / Phone",  icon: <Mic className="w-3 h-3" />,       desc: "Microphone in the room. Balanced detection (25% bass, more overall energy)." },
-                  { value: "auto",  label: "Auto-detect",  icon: <Cpu className="w-3 h-3" />,       desc: "App determines type from your audio signal automatically." },
-                ] as const).map(opt => (
-                  <Button
-                    key={opt.value}
-                    variant={recordingType === opt.value ? "default" : "outline"}
-                    size="sm"
-                    className="text-xs h-7 px-2.5 gap-1.5"
-                    onClick={() => setRecording(opt.value)}
-                    title={opt.desc}
-                    data-testid={`button-recording-${opt.value}-${upload.id}`}
-                  >
-                    {opt.icon}
-                    {opt.label}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground/70 mt-1.5">
-                {recordingType === "cable" && "Heavy bass weighting — ideal for mixer line-out or interface recordings."}
-                {recordingType === "mic"   && "Balanced weighting — handles room acoustics and inconsistent bass pickup."}
-                {recordingType === "auto"  && "Analyses your audio signal to decide between cable and mic weighting."}
-              </p>
-            </div>
-
-            {/* Sensitivity */}
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Detection sensitivity</p>
-              <div className="flex gap-1.5 flex-wrap">
-                {([
-                  { value: "conservative", label: "Conservative", desc: "Fewer clips, only the most obvious drops. Wider gaps between peaks." },
-                  { value: "balanced",     label: "Balanced",     desc: "Default. Good trade-off between catch rate and false positives." },
-                  { value: "aggressive",   label: "Aggressive",   desc: "More clips, lower threshold. Better for recordings with less dynamic range." },
-                ] as const).map(opt => (
-                  <Button
-                    key={opt.value}
-                    variant={sensitivity === opt.value ? "default" : "outline"}
-                    size="sm"
-                    className="text-xs h-7 px-2.5"
-                    onClick={() => setSensitivity(opt.value)}
-                    title={opt.desc}
-                    data-testid={`button-sensitivity-${opt.value}-${upload.id}`}
-                  >
-                    {opt.label}
-                  </Button>
-                ))}
-              </div>
-              <p className="text-xs text-muted-foreground/70 mt-1.5">
-                {sensitivity === "conservative" && "Only obvious drops above the 70th energy percentile. Fewer, stronger clips."}
-                {sensitivity === "balanced"     && "Clips above the 60th percentile. Good for most recordings."}
-                {sensitivity === "aggressive"   && "Clips above the 45th percentile. More clips, may include quieter transitions."}
-              </p>
-            </div>
-
-            {/* Output format */}
-            <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Output format</p>
-              <div className="flex gap-1.5 flex-wrap">
-                {([
-                  { value: "original", label: "No change" },
-                  { value: "9:16",     label: "9:16",  sub: "Reels / TikTok" },
-                  { value: "4:5",      label: "4:5",   sub: "Instagram" },
-                  { value: "1:1",      label: "1:1",   sub: "Square" },
-                  { value: "3:4",      label: "3:4",   sub: "Portrait" },
-                  { value: "16:9",     label: "16:9",  sub: "YouTube" },
-                ] as const).map(opt => {
-                  const isSourceFormat = sourceFormat && opt.value !== "original" && opt.value === sourceFormat;
-                  return (
-                    <Button
-                      key={opt.value}
-                      variant={outputFormat === opt.value ? "default" : "outline"}
-                      size="sm"
-                      className="text-xs h-auto px-2.5 py-1 flex flex-col items-center gap-0 leading-tight"
-                      onClick={() => setOutputFormat(opt.value)}
-                      data-testid={`button-format-${opt.value}-${upload.id}`}
-                    >
-                      <span>{opt.label}</span>
-                      {"sub" in opt && (
-                        <span className={cn("text-[10px] font-normal", outputFormat === opt.value ? "text-primary-foreground/70" : "text-muted-foreground")}>
-                          {isSourceFormat ? "✓ original" : opt.sub}
-                        </span>
-                      )}
-                    </Button>
-                  );
-                })}
-              </div>
-
-              {sourceFormat && sourceFormat !== "original" && outputFormat === "original" && (
-                <p className="text-xs text-muted-foreground/70 mt-1.5">
-                  Detected source: <strong>{sourceFormat}</strong>. Select a different format to convert.
-                </p>
-              )}
-
-              {/* Conversion method — only shown when a different format is chosen */}
-              {needsConversion && (
-                <div className="mt-3 flex flex-col gap-2">
-                  <p className="text-xs font-medium text-muted-foreground">
-                    Fit method <span className="font-normal text-muted-foreground/70">(source → {outputFormat})</span>
-                  </p>
-                  <div className="flex gap-1.5">
-                    <Button
-                      variant={cropMethod === "blur" ? "default" : "outline"}
-                      size="sm"
-                      className="text-xs h-7 px-2.5"
-                      onClick={() => setCropMethod("blur")}
-                      data-testid={`button-cropmethod-blur-${upload.id}`}
-                    >
-                      Blur background
-                    </Button>
-                    <Button
-                      variant={cropMethod === "crop" ? "default" : "outline"}
-                      size="sm"
-                      className="text-xs h-7 px-2.5"
-                      onClick={() => setCropMethod("crop")}
-                      data-testid={`button-cropmethod-crop-${upload.id}`}
-                    >
-                      Center crop
-                    </Button>
-                  </div>
-                  <p className="text-xs text-muted-foreground/70">
-                    {cropMethod === "blur"
-                      ? "Full frame visible, blurred copy fills the background. Preserves everything in shot."
-                      : "Crops to fill the frame from center. May cut edges — good if subject is centred."}
-                  </p>
-                </div>
-              )}
-            </div>
-
             {/* Maximum clips */}
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-1">
@@ -710,6 +578,154 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
                 data-testid={`input-max-clips-${upload.id}`}
               />
             </div>
+
+            {/* Advanced options toggle */}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="justify-start px-0 gap-1.5 text-xs text-muted-foreground h-auto"
+              onClick={() => setShowAdvanced(v => !v)}
+              data-testid={`button-advanced-toggle-${upload.id}`}
+            >
+              {showAdvanced ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              {showAdvanced ? "Hide advanced options" : "Show advanced options"}
+            </Button>
+
+            {/* Advanced options — Recording type, Sensitivity, Output format */}
+            {showAdvanced && (
+              <div className="flex flex-col gap-4 border-l-2 border-border/50 pl-4">
+
+                {/* Recording type */}
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Recording type</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {([
+                      { value: "cable", label: "Cable-in",    icon: <Cable className="w-3 h-3" /> },
+                      { value: "mic",   label: "Mic / Phone", icon: <Mic className="w-3 h-3" /> },
+                      { value: "auto",  label: "Auto-detect", icon: <Cpu className="w-3 h-3" /> },
+                    ] as const).map(opt => (
+                      <Button
+                        key={opt.value}
+                        variant={recordingType === opt.value ? "default" : "outline"}
+                        size="sm"
+                        className="text-xs h-7 px-2.5 gap-1.5"
+                        onClick={() => setRecording(opt.value)}
+                        data-testid={`button-recording-${opt.value}-${upload.id}`}
+                      >
+                        {opt.icon}
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground/70 mt-1.5">
+                    {recordingType === "cable" && "Heavy bass weighting — best for mixer line-out or interface recordings."}
+                    {recordingType === "mic"   && "Balanced weighting — handles room acoustics and inconsistent bass."}
+                    {recordingType === "auto"  && "Automatically decides between cable and mic weighting from the signal."}
+                  </p>
+                </div>
+
+                {/* Sensitivity */}
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Detection sensitivity</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {([
+                      { value: "conservative", label: "Conservative" },
+                      { value: "balanced",     label: "Balanced"     },
+                      { value: "aggressive",   label: "Aggressive"   },
+                    ] as const).map(opt => (
+                      <Button
+                        key={opt.value}
+                        variant={sensitivity === opt.value ? "default" : "outline"}
+                        size="sm"
+                        className="text-xs h-7 px-2.5"
+                        onClick={() => setSensitivity(opt.value)}
+                        data-testid={`button-sensitivity-${opt.value}-${upload.id}`}
+                      >
+                        {opt.label}
+                      </Button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground/70 mt-1.5">
+                    {sensitivity === "conservative" && "Fewer clips, only the most obvious drops (top 30% energy)."}
+                    {sensitivity === "balanced"     && "Good balance for most recordings (top 40% energy)."}
+                    {sensitivity === "aggressive"   && "More clips, catches quieter transitions (top 55% energy)."}
+                  </p>
+                </div>
+
+                {/* Output format */}
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2">Output format</p>
+                  <div className="flex gap-1.5 flex-wrap">
+                    {([
+                      { value: "original", label: "No change" },
+                      { value: "9:16",     label: "9:16",  sub: "Reels / TikTok" },
+                      { value: "4:5",      label: "4:5",   sub: "Instagram" },
+                      { value: "1:1",      label: "1:1",   sub: "Square" },
+                      { value: "3:4",      label: "3:4",   sub: "Portrait" },
+                      { value: "16:9",     label: "16:9",  sub: "YouTube" },
+                    ] as const).map(opt => {
+                      const isSourceFormat = sourceFormat && opt.value !== "original" && opt.value === sourceFormat;
+                      return (
+                        <Button
+                          key={opt.value}
+                          variant={outputFormat === opt.value ? "default" : "outline"}
+                          size="sm"
+                          className="text-xs h-auto px-2.5 py-1 flex flex-col items-center gap-0 leading-tight"
+                          onClick={() => setOutputFormat(opt.value)}
+                          data-testid={`button-format-${opt.value}-${upload.id}`}
+                        >
+                          <span>{opt.label}</span>
+                          {"sub" in opt && (
+                            <span className={cn("text-[10px] font-normal", outputFormat === opt.value ? "text-primary-foreground/70" : "text-muted-foreground")}>
+                              {isSourceFormat ? "✓ original" : opt.sub}
+                            </span>
+                          )}
+                        </Button>
+                      );
+                    })}
+                  </div>
+
+                  {sourceFormat && sourceFormat !== "original" && outputFormat === "original" && (
+                    <p className="text-xs text-muted-foreground/70 mt-1.5">
+                      Detected source: <strong>{sourceFormat}</strong>. Select a format above to convert.
+                    </p>
+                  )}
+
+                  {needsConversion && (
+                    <div className="mt-3 flex flex-col gap-2">
+                      <p className="text-xs font-medium text-muted-foreground">
+                        Fit method <span className="font-normal text-muted-foreground/70">(source → {outputFormat})</span>
+                      </p>
+                      <div className="flex gap-1.5">
+                        <Button
+                          variant={cropMethod === "blur" ? "default" : "outline"}
+                          size="sm"
+                          className="text-xs h-7 px-2.5"
+                          onClick={() => setCropMethod("blur")}
+                          data-testid={`button-cropmethod-blur-${upload.id}`}
+                        >
+                          Blur background
+                        </Button>
+                        <Button
+                          variant={cropMethod === "crop" ? "default" : "outline"}
+                          size="sm"
+                          className="text-xs h-7 px-2.5"
+                          onClick={() => setCropMethod("crop")}
+                          data-testid={`button-cropmethod-crop-${upload.id}`}
+                        >
+                          Center crop
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground/70">
+                        {cropMethod === "blur"
+                          ? "Full frame visible, blurred copy fills the background. Preserves everything in shot."
+                          : "Crops to fill the frame from center. May cut edges — good if subject is centred."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             <Button
               className="gap-2"
@@ -781,7 +797,8 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
 export default function Home() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [showBrowser, setShowBrowser] = useState(false);
+  const [showBrowser, setShowBrowser]   = useState(false);
+  const [openingPicker, setOpeningPicker] = useState(false);
 
   const { data: uploads = [], isLoading } = useQuery<Upload[]>({
     queryKey: ["/api/uploads"],
@@ -858,23 +875,47 @@ export default function Home() {
           <Button
             size="lg"
             className="gap-2 w-full sm:w-auto"
-            onClick={() => setShowBrowser(true)}
-            disabled={localPathMutation.isPending}
+            disabled={localPathMutation.isPending || openingPicker}
+            onClick={async () => {
+              setOpeningPicker(true);
+              try {
+                const res = await fetch("/api/browse-native", { method: "POST" });
+                if (!res.ok) {
+                  // Not on Windows or picker failed — fall back to tree browser
+                  setShowBrowser(true);
+                  return;
+                }
+                const { filePath } = await res.json();
+                if (filePath) {
+                  localPathMutation.mutate(filePath);
+                }
+                // if filePath is null the user cancelled — do nothing
+              } catch {
+                // Network error or not available — fall back
+                setShowBrowser(true);
+              } finally {
+                setOpeningPicker(false);
+              }
+            }}
             data-testid="button-browse-open"
           >
-            {localPathMutation.isPending ? (
+            {localPathMutation.isPending || openingPicker ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <FolderOpen className="w-4 h-4" />
             )}
-            {localPathMutation.isPending ? "Registering file…" : "Browse & add DJ set"}
+            {localPathMutation.isPending
+              ? "Registering file…"
+              : openingPicker
+              ? "Opening file picker…"
+              : "Browse & add DJ set"}
           </Button>
           <p className="text-xs text-muted-foreground mt-2">
-            Opens a file browser — select your video file directly. No transfer needed.
+            Opens a file picker — select your video file directly. No transfer needed.
           </p>
         </div>
 
-        {/* File browser modal */}
+        {/* Tree browser modal (fallback for non-Windows) */}
         <FileBrowserModal
           open={showBrowser}
           onClose={() => setShowBrowser(false)}

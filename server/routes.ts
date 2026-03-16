@@ -76,7 +76,40 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
-  // === FILE BROWSER ===
+  // === NATIVE FILE PICKER (Windows only) ===
+  // Opens the real Windows OpenFileDialog via PowerShell and returns the chosen path.
+  // Blocks until the user picks a file or cancels — this is intentional.
+  app.post("/api/browse-native", async (req, res) => {
+    if (process.platform !== "win32") {
+      return res.status(400).json({ message: "Native picker only available on Windows" });
+    }
+    try {
+      const { execFile } = await import("child_process");
+      const { promisify } = await import("util");
+      const execAsync = promisify(execFile);
+
+      const ps = `
+Add-Type -AssemblyName System.Windows.Forms
+$dialog = New-Object System.Windows.Forms.OpenFileDialog
+$dialog.Title  = "Select DJ Set Recording"
+$dialog.Filter = "Video Files|*.mp4;*.mov;*.avi;*.webm;*.mkv|All Files|*.*"
+$dialog.Multiselect = $false
+$null = $dialog.ShowDialog()
+if ($dialog.FileName) { Write-Output $dialog.FileName }
+`.trim();
+
+      const { stdout } = await execAsync("powershell", ["-NoProfile", "-Command", ps], {
+        timeout: 5 * 60 * 1000, // 5 min — plenty of time to browse
+      });
+
+      const filePath = stdout.trim();
+      res.json({ filePath: filePath || null });
+    } catch (err) {
+      res.status(500).json({ message: "Native file picker failed: " + String(err) });
+    }
+  });
+
+  // === FILE BROWSER (tree fallback for non-Windows) ===
 
   app.get("/api/browse", (req, res) => {
     try {
