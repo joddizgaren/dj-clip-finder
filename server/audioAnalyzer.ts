@@ -421,9 +421,15 @@ export function buildFormatFilter(
       `[bg][fg]overlay=(main_w-overlay_w)/2:(main_h-overlay_h)/2[v]`;
     return { filterComplex, mapVideo: "[v]" };
   } else {
-    // Center crop to target aspect ratio, then scale
-    const vf =
-      `crop='min(iw,ih*${w}/${h})':'min(ih,iw*${h}/${w})':(iw-min(iw,ih*${w}/${h}))/2:(ih-min(ih,iw*${h}/${w}))/2,scale=${w}:${h}`;
+    // Center crop to target aspect ratio, then scale.
+    // Pre-compute all crop values as plain integers — avoids Windows arg-escaping
+    // issues where commas inside min() expressions get misinterpreted as filter
+    // chain separators by ffmpeg's filter parser.
+    const cropW = Math.min(srcWidth,  Math.round(srcHeight * w / h));
+    const cropH = Math.min(srcHeight, Math.round(srcWidth  * h / w));
+    const cropX = Math.floor((srcWidth  - cropW) / 2);
+    const cropY = Math.floor((srcHeight - cropH) / 2);
+    const vf = `crop=${cropW}:${cropH}:${cropX}:${cropY},scale=${w}:${h}`;
     return { vf };
   }
 }
