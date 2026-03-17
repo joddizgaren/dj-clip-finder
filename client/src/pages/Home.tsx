@@ -498,8 +498,22 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
     : null;
   const needsConversion = outputFormat !== "original" && outputFormat !== sourceFormat;
 
+  // Compare two settings objects field-by-field
+  function settingsAreSame(a: GenerateSettings | null, b: GenerateSettings): boolean {
+    if (!a) return false;
+    return (
+      [...a.durations].sort().join(",") === [...b.durations].sort().join(",") &&
+      a.maxClips     === b.maxClips     &&
+      a.buildUp      === b.buildUp      &&
+      a.sensitivity  === b.sensitivity  &&
+      a.recordingType === b.recordingType &&
+      a.outputFormat  === b.outputFormat  &&
+      a.cropMethod    === b.cropMethod
+    );
+  }
+
   const generateMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (opts?: { append?: boolean; skipFirstN?: number }) => {
       const settings: GenerateSettings = {
         durations: selectedDurations,
         maxClips: maxClipsNumber,
@@ -519,6 +533,8 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
         recordingType: settings.recordingType,
         outputFormat: settings.outputFormat,
         cropMethod: settings.cropMethod,
+        append:     opts?.append     ?? false,
+        skipFirstN: opts?.skipFirstN ?? 0,
       });
     },
     onSuccess: () => {
@@ -981,52 +997,77 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
           </div>
         )}
 
-        {/* Warning: regenerating will delete existing clips */}
+        {/* Warning: regenerating when clips already exist */}
         <Dialog open={showRegenWarning} onOpenChange={setShowRegenWarning}>
           <DialogContent className="max-w-sm">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="w-5 h-5 text-amber-500" />
-                Replace existing clips?
+                Add more or replace existing clips?
               </DialogTitle>
               <DialogDescription className="text-sm leading-relaxed pt-1">
                 You already have <strong>{clips.length}</strong> generated clip{clips.length !== 1 ? "s" : ""}.
-                Generating new clips will <strong>permanently delete</strong> them.
-                <br /><br />
-                If you want to keep them, use the <em>"Add more clips"</em> option below instead.
+                Do you want to keep them and add more, or delete them and generate new ones?
               </DialogDescription>
             </DialogHeader>
             <DialogFooter className="flex flex-col gap-2 sm:flex-col">
+
+              {/* Keep + add more */}
               <Button
-                variant="outline"
-                className="w-full justify-start gap-2"
+                className="w-full justify-start gap-2 bg-green-600 hover:bg-green-700 text-white"
                 onClick={() => {
                   setShowRegenWarning(false);
-                  setShowClips(true);
-                  setTimeout(() => moreClipsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 120);
+                  const current: GenerateSettings = {
+                    durations: selectedDurations, maxClips: maxClipsNumber,
+                    buildUp, sensitivity, recordingType, outputFormat, cropMethod,
+                  };
+                  if (settingsAreSame(lastSettings, current)) {
+                    // Same settings → skip already-encoded files (classic append)
+                    appendMutation.mutate();
+                  } else {
+                    // New settings → generate from peak #1, add on top of existing
+                    generateMutation.mutate({ append: true });
+                  }
                 }}
               >
-                <PlusCircle className="w-4 h-4 text-primary" />
-                Add more clips instead
+                <PlusCircle className="w-4 h-4" />
+                Keep existing and add more
               </Button>
+
+              {/* Delete + generate new */}
               <Button
-                variant="destructive"
-                className="w-full justify-start gap-2"
+                className="w-full justify-start gap-2 bg-red-600 hover:bg-red-700 text-white"
                 onClick={() => {
                   setShowRegenWarning(false);
-                  generateMutation.mutate();
+                  const current: GenerateSettings = {
+                    durations: selectedDurations, maxClips: maxClipsNumber,
+                    buildUp, sensitivity, recordingType, outputFormat, cropMethod,
+                  };
+                  if (settingsAreSame(lastSettings, current)) {
+                    // Same settings → delete existing, but continue from peak N+1
+                    const clipsPerDur = selectedDurations.length > 0
+                      ? Math.floor(clips.length / selectedDurations.length)
+                      : clips.length;
+                    generateMutation.mutate({ append: false, skipFirstN: clipsPerDur });
+                  } else {
+                    // New settings → delete all, start fresh from peak #1
+                    generateMutation.mutate({ append: false });
+                  }
                 }}
               >
                 <Scissors className="w-4 h-4" />
-                Delete existing &amp; generate new
+                Delete existing and generate new
               </Button>
+
+              {/* Cancel */}
               <Button
-                variant="ghost"
+                variant="outline"
                 className="w-full"
                 onClick={() => setShowRegenWarning(false)}
               >
-                Cancel — keep my clips
+                Cancel and go back
               </Button>
+
             </DialogFooter>
           </DialogContent>
         </Dialog>

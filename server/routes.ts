@@ -305,7 +305,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
     }
 
-    const { durations, maxClips, buildUp, sensitivity, recordingType, outputFormat, cropMethod, append, moreCount } = req.body;
+    const { durations, maxClips, buildUp, sensitivity, recordingType, outputFormat, cropMethod, append, moreCount, skipFirstN } = req.body;
 
     if (!durations || !Array.isArray(durations) || durations.length === 0) {
       return res.status(400).json({ message: "Please select at least one clip duration" });
@@ -315,6 +315,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     const isAppend = Boolean(append);
     // For append mode, moreCount controls how many NEW clips to add
     const appendLimit: number = typeof moreCount === "number" && moreCount > 0 ? moreCount : maxClipsLimit;
+    // skipFirstN: number of SUCCESSFUL peaks to skip before starting to encode (used for "delete+continue" behavior)
+    const peakSkipCount: number = typeof skipFirstN === "number" && skipFirstN > 0 ? Math.round(skipFirstN) : 0;
     const validBuildUps: BuildUp[] = ["none", "short", "medium", "long", "auto"];
     const resolvedBuildUp: BuildUp = validBuildUps.includes(buildUp) ? buildUp : "short";
     const resolvedSensitivity: Sensitivity = ["conservative", "balanced", "aggressive"].includes(sensitivity)
@@ -397,11 +399,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
         let count = 0;
 
-        console.log(`Starting generation: ${durations.join(",")}s clips, limit=${perDurLimit > 0 ? perDurLimit : "all"}, peaks=${normalizedPeaks.length}, append=${isAppend}`);
+        console.log(`Starting generation: ${durations.join(",")}s clips, limit=${perDurLimit > 0 ? perDurLimit : "all"}, peaks=${normalizedPeaks.length}, append=${isAppend}, skipFirstN=${peakSkipCount}`);
 
         for (const dur of durations as number[]) {
-          let durCount = 0; // counts successfully encoded clips for this duration
-          console.log(`  [${dur}s] Iterating ${normalizedPeaks.length} peaks, need ${perDurLimit > 0 ? perDurLimit : "all"}`);
+          let durCount   = 0; // successfully encoded for this duration
+          let skipRemain = peakSkipCount; // successful peaks still to skip before encoding
+          console.log(`  [${dur}s] Iterating ${normalizedPeaks.length} peaks, need ${perDurLimit > 0 ? perDurLimit : "all"}, skip=${skipRemain}`);
 
           for (const peak of normalizedPeaks) {
             if (abortSignal.aborted) {
@@ -417,6 +420,13 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             const times = computeClipTimes(peak, dur, videoDuration, resolvedBuildUp);
             if (!times) {
               console.log(`  [${dur}s] Skipped peak @${Math.floor(peak.time)}s (too close to end or too short)`);
+              continue; // null peaks don't count toward skipRemain
+            }
+
+            // Skip the first N successful peaks (used for "delete+continue same settings")
+            if (skipRemain > 0) {
+              skipRemain--;
+              console.log(`  [${dur}s] Offset-skipped peak @${Math.floor(peak.time)}s (${peakSkipCount - skipRemain}/${peakSkipCount})`);
               continue;
             }
 
