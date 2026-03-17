@@ -98,6 +98,7 @@ function FileBrowserModal({
 }) {
   const [browsePath, setBrowsePath] = useState<string>("");
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
+  const [pathInput, setPathInput] = useState<string>("");
 
   const { data: browseData, isLoading: isBrowsing, error: browseError } = useQuery<BrowseResponse>({
     queryKey: ["/api/browse", browsePath],
@@ -107,6 +108,11 @@ function FileBrowserModal({
     enabled: open,
   });
 
+  // Sync path input with current directory
+  useEffect(() => {
+    if (browseData?.path) setPathInput(browseData.path);
+  }, [browseData?.path]);
+
   // Reset when modal opens
   useEffect(() => {
     if (open) {
@@ -115,25 +121,32 @@ function FileBrowserModal({
     }
   }, [open]);
 
-  const handleDirClick = (dir: string) => {
-    if (!browseData) return;
-    const sep = browseData.path.includes("\\") ? "\\" : "/";
-    setBrowsePath(browseData.path + sep + dir);
+  const navigateTo = (p: string) => {
+    setBrowsePath(p);
     setSelectedFile(null);
   };
 
+  const handleDirClick = (dir: string) => {
+    if (!browseData) return;
+    const sep = browseData.path.includes("\\") ? "\\" : "/";
+    navigateTo(browseData.path + sep + dir);
+  };
+
   const handleParentClick = () => {
-    if (browseData?.parent) {
-      setBrowsePath(browseData.parent);
-      setSelectedFile(null);
-    }
+    if (browseData?.parent) navigateTo(browseData.parent);
   };
 
   const handleFileClick = (fullPath: string) => {
     setSelectedFile(prev => prev === fullPath ? null : fullPath);
   };
 
-  // Build breadcrumb segments — guard against undefined while loading
+  const handlePathSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = pathInput.trim();
+    if (trimmed) navigateTo(trimmed);
+  };
+
+  // Build breadcrumb segments
   const pathSep = browseData?.path?.includes("\\") ? "\\" : "/";
   const isWin   = browseData?.path?.includes("\\") ?? false;
   const segments = browseData?.path
@@ -148,20 +161,34 @@ function FileBrowserModal({
 
   return (
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
-      <DialogContent className="max-w-2xl max-h-[80vh] flex flex-col gap-0 p-0">
+      <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col gap-0 p-0">
         <DialogHeader className="p-5 pb-3 shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <FolderOpen className="w-4 h-4 text-primary" />
-            Browse for video file
+            Select your DJ set
           </DialogTitle>
           <DialogDescription className="sr-only">
             Navigate your file system to find and select a video file.
           </DialogDescription>
 
+          {/* Path input — paste any folder or file path and press Enter */}
+          <form onSubmit={handlePathSubmit} className="flex gap-2 mt-3">
+            <Input
+              value={pathInput}
+              onChange={e => setPathInput(e.target.value)}
+              placeholder={isWin ? "e.g. C:\\Users\\jgarr\\Videos" : "/home/user/videos"}
+              className="text-xs h-8 font-mono"
+              data-testid="input-browse-path"
+            />
+            <Button type="submit" size="sm" variant="outline" className="h-8 shrink-0">
+              Go
+            </Button>
+          </form>
+
           {/* Breadcrumb */}
           {browseData && (
             <div className="flex items-center gap-1 flex-wrap mt-2">
-              <Button variant="ghost" size="sm" className="h-6 px-1.5 text-xs" onClick={() => { setBrowsePath(""); setSelectedFile(null); }}>
+              <Button variant="ghost" size="sm" className="h-6 px-1.5 text-xs" onClick={() => navigateTo("")}>
                 <HomeIcon className="w-3 h-3" />
               </Button>
               {segments.map((seg, i) => (
@@ -171,7 +198,7 @@ function FileBrowserModal({
                     variant="ghost"
                     size="sm"
                     className="h-6 px-1.5 text-xs"
-                    onClick={() => { setBrowsePath(seg.path); setSelectedFile(null); }}
+                    onClick={() => navigateTo(seg.path)}
                   >
                     {seg.label}
                   </Button>
@@ -181,7 +208,7 @@ function FileBrowserModal({
           )}
         </DialogHeader>
 
-        <ScrollArea className="flex-1 px-5 min-h-0" style={{ maxHeight: "50vh" }}>
+        <ScrollArea className="flex-1 px-5 min-h-0" style={{ maxHeight: "55vh" }}>
           {isBrowsing && (
             <div className="flex items-center gap-2 py-8 justify-center text-muted-foreground text-sm">
               <Loader2 className="w-4 h-4 animate-spin" /> Loading…
@@ -190,7 +217,7 @@ function FileBrowserModal({
 
           {browseError && (
             <div className="text-destructive text-sm py-4 text-center">
-              Could not read directory. Try navigating elsewhere.
+              Could not read that path. Check it's correct and try again.
             </div>
           )}
 
@@ -204,7 +231,7 @@ function FileBrowserModal({
                   data-testid="button-browse-parent"
                 >
                   <Folder className="w-4 h-4 shrink-0 text-chart-4" />
-                  <span className="italic">..</span>
+                  <span className="italic">.. (up one folder)</span>
                 </button>
               )}
 
@@ -212,7 +239,7 @@ function FileBrowserModal({
               {browseData.dirs.map(dir => (
                 <button
                   key={dir}
-                  className="flex items-center gap-2.5 px-2 py-1.5 rounded text-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left w-full"
+                  className="flex items-center gap-2.5 px-2 py-2 rounded text-sm hover:bg-accent hover:text-accent-foreground transition-colors text-left w-full"
                   onClick={() => handleDirClick(dir)}
                   data-testid={`button-browse-dir-${dir}`}
                 >
@@ -226,7 +253,7 @@ function FileBrowserModal({
                 <button
                   key={file.fullPath}
                   className={cn(
-                    "flex items-center gap-2.5 px-2 py-1.5 rounded text-sm transition-colors text-left w-full",
+                    "flex items-center gap-2.5 px-2 py-2 rounded text-sm transition-colors text-left w-full",
                     selectedFile === file.fullPath
                       ? "bg-primary/15 text-primary border border-primary/30"
                       : "hover:bg-accent hover:text-accent-foreground"
@@ -819,8 +846,7 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
 export default function Home() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [showBrowser, setShowBrowser]   = useState(false);
-  const [openingPicker, setOpeningPicker] = useState(false);
+  const [showBrowser, setShowBrowser] = useState(false);
 
   const { data: uploads = [], isLoading } = useQuery<Upload[]>({
     queryKey: ["/api/uploads"],
@@ -897,51 +923,26 @@ export default function Home() {
           <Button
             size="lg"
             className="gap-2 w-full sm:w-auto"
-            disabled={localPathMutation.isPending || openingPicker}
-            onClick={async () => {
-              setOpeningPicker(true);
-              try {
-                const res = await fetch("/api/browse-native", { method: "POST" });
-                if (!res.ok) {
-                  // Not on Windows or picker failed — fall back to tree browser
-                  setShowBrowser(true);
-                  return;
-                }
-                const { filePath } = await res.json();
-                if (filePath) {
-                  localPathMutation.mutate(filePath);
-                }
-                // if filePath is null the user cancelled — do nothing
-              } catch {
-                // Network error or not available — fall back
-                setShowBrowser(true);
-              } finally {
-                setOpeningPicker(false);
-              }
-            }}
+            disabled={localPathMutation.isPending}
+            onClick={() => setShowBrowser(true)}
             data-testid="button-browse-open"
           >
-            {localPathMutation.isPending || openingPicker ? (
+            {localPathMutation.isPending ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <FolderOpen className="w-4 h-4" />
             )}
-            {localPathMutation.isPending
-              ? "Registering file…"
-              : openingPicker
-              ? "Opening file picker…"
-              : "Browse & add DJ set"}
+            {localPathMutation.isPending ? "Adding file…" : "Browse & add DJ set"}
           </Button>
           <p className="text-xs text-muted-foreground mt-2">
-            Opens a file picker — select your video file directly. No transfer needed.
+            Navigate to your video file, or paste its full path directly.
           </p>
         </div>
 
-        {/* Tree browser modal (fallback for non-Windows) */}
         <FileBrowserModal
           open={showBrowser}
           onClose={() => setShowBrowser(false)}
-          onSelect={(filePath) => localPathMutation.mutate(filePath)}
+          onSelect={(filePath) => { localPathMutation.mutate(filePath); setShowBrowser(false); }}
         />
 
         {/* Upload list */}
