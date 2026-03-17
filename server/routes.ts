@@ -305,13 +305,16 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       });
     }
 
-    const { durations, maxClips, buildUp, sensitivity, recordingType, outputFormat, cropMethod } = req.body;
+    const { durations, maxClips, buildUp, sensitivity, recordingType, outputFormat, cropMethod, append, moreCount } = req.body;
 
     if (!durations || !Array.isArray(durations) || durations.length === 0) {
       return res.status(400).json({ message: "Please select at least one clip duration" });
     }
 
     const maxClipsLimit: number = typeof maxClips === "number" && maxClips > 0 ? maxClips : 0;
+    const isAppend = Boolean(append);
+    // For append mode, moreCount controls how many NEW clips to add
+    const appendLimit: number = typeof moreCount === "number" && moreCount > 0 ? moreCount : maxClipsLimit;
     const validBuildUps: BuildUp[] = ["none", "short", "medium", "long", "auto"];
     const resolvedBuildUp: BuildUp = validBuildUps.includes(buildUp) ? buildUp : "short";
     const resolvedSensitivity: Sensitivity = ["conservative", "balanced", "aggressive"].includes(sensitivity)
@@ -368,41 +371,51 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
           return;
         }
 
-        // Delete existing clips
-        const existing = await storage.getClipsByUpload(found.id);
-        for (const c of existing) {
-          try { fs.unlinkSync(c.clipPath); } catch {}
+        // Delete existing clips (unless appending to them)
+        if (!isAppend) {
+          const existing = await storage.getClipsByUpload(found.id);
+          for (const c of existing) {
+            try { fs.unlinkSync(c.clipPath); } catch {}
+          }
+          await storage.deleteClipsByUpload(found.id);
         }
-        await storage.deleteClipsByUpload(found.id);
 
         const refUpload = await storage.getUpload(found.id);
         const videoDuration = refUpload?.duration ?? found.duration;
         const srcWidth  = refUpload?.videoWidth  ?? found.videoWidth  ?? 1920;
         const srcHeight = refUpload?.videoHeight ?? found.videoHeight ?? 1080;
 
-        const peaksToUse = maxClipsLimit > 0 ? peaks.slice(0, maxClipsLimit) : peaks;
-
-        // Normalize energy so the best peak = 100%, giving meaningful relative scores
-        const maxEnergy = Math.max(...peaksToUse.map((p: any) => p.energyLevel));
-        const normalizedPeaks = peaksToUse.map((p: any) => ({
+        // Normalize energy so the best peak = 100% (based on full peak set)
+        const maxEnergy = Math.max(...peaks.map((p: any) => p.energyLevel));
+        const normalizedPeaks = peaks.map((p: any) => ({
           ...p,
           energyLevel: maxEnergy > 0 ? Math.round((p.energyLevel / maxEnergy) * 100) : p.energyLevel,
         }));
 
+        // Per-duration clip limit — for append, use moreCount; otherwise maxClipsLimit
+        const perDurLimit = isAppend ? appendLimit : maxClipsLimit;
+
         let count = 0;
 
         for (const dur of durations as number[]) {
+          let durCount = 0; // counts successfully encoded clips for this duration
+
           for (const peak of normalizedPeaks) {
             if (abortSignal.aborted) {
               console.log(`Generation stopped by user after ${count} clips`);
               break;
             }
+            // Stop once we have enough clips for this duration
+            if (perDurLimit > 0 && durCount >= perDurLimit) break;
 
             const times = computeClipTimes(peak, dur, videoDuration, resolvedBuildUp);
-            if (!times) continue;
+            if (!times) continue; // peak too close to end — try next one (doesn't count toward limit)
 
             const clipFilename = buildClipFilename(found.filename, peak.time, dur);
             const clipPath = path.join(CLIPS_DIR, clipFilename);
+
+            // In append mode skip peaks whose clip file was already encoded
+            if (isAppend && fs.existsSync(clipPath)) continue;
 
             await extractClip(found.filePath, clipPath, times.startTime, times.endTime - times.startTime, {
               srcWidth,
@@ -422,6 +435,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
               outputFormat: resolvedOutputFormat,
             });
 
+            durCount++;
             count++;
             console.log(`  Encoded clip ${count}: ${dur}s at ${Math.floor(peak.time)}s (${resolvedOutputFormat})`);
           }

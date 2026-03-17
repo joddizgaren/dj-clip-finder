@@ -42,6 +42,7 @@ import {
   Cpu,
   MonitorSmartphone,
   Square,
+  Sliders,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────
@@ -322,7 +323,7 @@ function StatusBadge({ status }: { status: string }) {
 // ClipCard
 // ─────────────────────────────────────────────
 
-function ClipCard({ clip, onDelete }: { clip: Clip; onDelete: (id: string) => void }) {
+function ClipCard({ clip, onDelete, index }: { clip: Clip; onDelete: (id: string) => void; index: number }) {
   const [expanded, setExpanded] = useState(false);
 
   return (
@@ -330,7 +331,9 @@ function ClipCard({ clip, onDelete }: { clip: Clip; onDelete: (id: string) => vo
       <CardContent className="p-4 flex flex-col gap-3">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-foreground">{clip.duration}s clip</span>
+            <span className="text-sm font-medium text-foreground">
+              Clip #{index + 1}: {clip.duration}s clip
+            </span>
             <span className="text-xs text-muted-foreground">
               {formatTime(clip.startTime)} – {formatTime(clip.endTime)}
             </span>
@@ -368,12 +371,14 @@ function ClipCard({ clip, onDelete }: { clip: Clip; onDelete: (id: string) => vo
         </Button>
 
         {expanded && (
-          <video
-            controls
-            className="w-full rounded-md bg-black max-h-[360px] object-contain"
-            src={`/api/clips/${clip.id}/stream`}
-            data-testid={`video-preview-${clip.id}`}
-          />
+          <div className="flex justify-center">
+            <video
+              controls
+              className="rounded-md bg-black max-h-[360px] max-w-full w-auto"
+              src={`/api/clips/${clip.id}/stream`}
+              data-testid={`video-preview-${clip.id}`}
+            />
+          </div>
         )}
 
         <div className="flex gap-2">
@@ -421,6 +426,19 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
   const [cropMethod, setCropMethod]     = useState<CropMethod>("blur");
   const [showClips, setShowClips]       = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [showSettings, setShowSettings] = useState(true);
+  const [moreCount, setMoreCount]       = useState<string>("5");
+
+  type GenerateSettings = {
+    durations: ClipDuration[];
+    maxClips: number;
+    buildUp: BuildUp;
+    sensitivity: Sensitivity;
+    recordingType: RecordingType;
+    outputFormat: OutputFormat;
+    cropMethod: CropMethod;
+  };
+  const [lastSettings, setLastSettings] = useState<GenerateSettings | null>(null);
 
   const isGenerating = upload.status === "generating";
 
@@ -456,21 +474,57 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
   const needsConversion = outputFormat !== "original" && outputFormat !== sourceFormat;
 
   const generateMutation = useMutation({
-    mutationFn: () =>
-      apiRequest("POST", `/api/uploads/${upload.id}/generate`, {
+    mutationFn: () => {
+      const settings: GenerateSettings = {
         durations: selectedDurations,
-        maxClips: maxClipsNumber > 0 ? maxClipsNumber : 0,
+        maxClips: maxClipsNumber,
         buildUp,
         sensitivity,
         recordingType,
         outputFormat,
         cropMethod,
-      }),
+      };
+      setLastSettings(settings);
+      setShowSettings(false);
+      return apiRequest("POST", `/api/uploads/${upload.id}/generate`, {
+        durations: settings.durations,
+        maxClips: settings.maxClips > 0 ? settings.maxClips : 0,
+        buildUp: settings.buildUp,
+        sensitivity: settings.sensitivity,
+        recordingType: settings.recordingType,
+        outputFormat: settings.outputFormat,
+        cropMethod: settings.cropMethod,
+      });
+    },
     onSuccess: () => {
       const limitText = maxClipsNumber > 0 ? `top ${maxClipsNumber}` : "all";
       toast({
         title: "Generating clips…",
         description: `Encoding ${limitText} highlight moments. Clips appear as they're ready.`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/uploads"] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Generation failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const moreCountNumber = moreCount.trim() === "" ? 5 : parseInt(moreCount, 10);
+
+  const appendMutation = useMutation({
+    mutationFn: () => {
+      if (!lastSettings) return Promise.reject(new Error("No settings"));
+      return apiRequest("POST", `/api/uploads/${upload.id}/generate`, {
+        ...lastSettings,
+        maxClips: lastSettings.maxClips > 0 ? lastSettings.maxClips : 0,
+        append: true,
+        moreCount: moreCountNumber > 0 ? moreCountNumber : 5,
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Generating more clips…",
+        description: `Adding ${moreCountNumber} more highlight moments.`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/uploads"] });
     },
@@ -546,7 +600,7 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
         )}
 
         {/* Generate controls */}
-        {upload.status === "analyzed" && (
+        {upload.status === "analyzed" && showSettings && (
           <div className="flex flex-col gap-4">
 
             {/* Clip durations */}
@@ -783,26 +837,39 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
 
         {/* Generating progress + stop button */}
         {isGenerating && (
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-1">
-              <Loader2 className="w-3 h-3 animate-spin shrink-0" />
-              <span>
-                {clips.length > 0
-                  ? `${clips.length} clip${clips.length > 1 ? "s" : ""} ready so far — still encoding…`
-                  : "Analysing audio and encoding clips…"}
-              </span>
+          <div className="flex flex-col gap-2">
+            {lastSettings && (
+              <div className="text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2 flex flex-wrap gap-x-4 gap-y-1">
+                <span><span className="font-medium text-foreground/70">Duration:</span> {lastSettings.durations.join(", ")}s</span>
+                <span><span className="font-medium text-foreground/70">Max clips:</span> {lastSettings.maxClips > 0 ? lastSettings.maxClips : "all"}</span>
+                <span><span className="font-medium text-foreground/70">Build-up:</span> {lastSettings.buildUp === "auto" ? "DJ Choice" : lastSettings.buildUp}</span>
+                {lastSettings.outputFormat !== "original" && (
+                  <span><span className="font-medium text-foreground/70">Format:</span> {lastSettings.outputFormat}</span>
+                )}
+                <span><span className="font-medium text-foreground/70">Sensitivity:</span> {lastSettings.sensitivity}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-1">
+                <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                <span>
+                  {clips.length > 0
+                    ? `${clips.length} clip${clips.length > 1 ? "s" : ""} ready so far — still encoding…`
+                    : "Analysing audio and encoding clips…"}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs h-7 shrink-0 text-destructive border-destructive/40 hover:bg-destructive/10"
+                onClick={() => stopMutation.mutate()}
+                disabled={stopMutation.isPending}
+                data-testid={`button-stop-${upload.id}`}
+              >
+                <Square className="w-3 h-3" />
+                Stop
+              </Button>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="gap-1.5 text-xs h-7 shrink-0 text-destructive border-destructive/40 hover:bg-destructive/10"
-              onClick={() => stopMutation.mutate()}
-              disabled={stopMutation.isPending}
-              data-testid={`button-stop-${upload.id}`}
-            >
-              <Square className="w-3 h-3" />
-              Stop
-            </Button>
           </div>
         )}
 
@@ -823,13 +890,59 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
             </Button>
             {showClips && (
               <div className="grid grid-cols-1 gap-3">
-                {clips.map(clip => (
+                {clips.map((clip, idx) => (
                   <ClipCard
                     key={clip.id}
                     clip={clip}
+                    index={idx}
                     onDelete={(id) => deleteClipMutation.mutate(id)}
                   />
                 ))}
+              </div>
+            )}
+
+            {/* Generate more / change settings — shown after generation finishes */}
+            {!isGenerating && upload.status === "analyzed" && lastSettings && (
+              <div className="border-t border-border/50 pt-3 flex flex-col gap-3">
+                <p className="text-xs font-medium text-muted-foreground">Want more clips?</p>
+                <div className="flex flex-wrap gap-2 items-center">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground shrink-0">Generate</span>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={moreCount}
+                      onChange={e => setMoreCount(e.target.value)}
+                      className="w-16 h-7 text-sm"
+                      data-testid={`input-more-count-${upload.id}`}
+                    />
+                    <span className="text-xs text-muted-foreground shrink-0">more with same settings</span>
+                    <Button
+                      size="sm"
+                      className="h-7 text-xs px-3 gap-1.5"
+                      disabled={appendMutation.isPending}
+                      onClick={() => appendMutation.mutate()}
+                      data-testid={`button-append-${upload.id}`}
+                    >
+                      {appendMutation.isPending ? (
+                        <Loader2 className="w-3 h-3 animate-spin" />
+                      ) : (
+                        <Scissors className="w-3 h-3" />
+                      )}
+                      Generate
+                    </Button>
+                  </div>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="justify-start px-0 gap-1.5 text-xs text-muted-foreground h-auto w-fit"
+                  onClick={() => setShowSettings(true)}
+                  data-testid={`button-change-settings-${upload.id}`}
+                >
+                  <Sliders className="w-3 h-3" />
+                  Generate with different settings
+                </Button>
               </div>
             )}
           </div>
