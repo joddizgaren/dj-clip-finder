@@ -397,26 +397,39 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
         let count = 0;
 
+        console.log(`Starting generation: ${durations.join(",")}s clips, limit=${perDurLimit > 0 ? perDurLimit : "all"}, peaks=${normalizedPeaks.length}, append=${isAppend}`);
+
         for (const dur of durations as number[]) {
           let durCount = 0; // counts successfully encoded clips for this duration
+          console.log(`  [${dur}s] Iterating ${normalizedPeaks.length} peaks, need ${perDurLimit > 0 ? perDurLimit : "all"}`);
 
           for (const peak of normalizedPeaks) {
             if (abortSignal.aborted) {
-              console.log(`Generation stopped by user after ${count} clips`);
+              console.log(`  Generation stopped by user after ${count} clips`);
               break;
             }
             // Stop once we have enough clips for this duration
-            if (perDurLimit > 0 && durCount >= perDurLimit) break;
+            if (perDurLimit > 0 && durCount >= perDurLimit) {
+              console.log(`  [${dur}s] Reached limit (${perDurLimit}), stopping`);
+              break;
+            }
 
             const times = computeClipTimes(peak, dur, videoDuration, resolvedBuildUp);
-            if (!times) continue; // peak too close to end — try next one (doesn't count toward limit)
+            if (!times) {
+              console.log(`  [${dur}s] Skipped peak @${Math.floor(peak.time)}s (too close to end or too short)`);
+              continue;
+            }
 
             const clipFilename = buildClipFilename(found.filename, peak.time, dur);
             const clipPath = path.join(CLIPS_DIR, clipFilename);
 
             // In append mode skip peaks whose clip file was already encoded
-            if (isAppend && fs.existsSync(clipPath)) continue;
+            if (isAppend && fs.existsSync(clipPath)) {
+              console.log(`  [${dur}s] Skipped peak @${Math.floor(peak.time)}s (already exists)`);
+              continue;
+            }
 
+            console.log(`  [${dur}s] Encoding clip ${durCount + 1}: peak @${Math.floor(peak.time)}s → ${times.startTime}–${times.endTime}s`);
             await extractClip(found.filePath, clipPath, times.startTime, times.endTime - times.startTime, {
               srcWidth,
               srcHeight,
@@ -437,9 +450,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
             durCount++;
             count++;
-            console.log(`  Encoded clip ${count}: ${dur}s at ${Math.floor(peak.time)}s (${resolvedOutputFormat})`);
+            console.log(`  [${dur}s] ✓ Clip ${count} saved (${durCount}/${perDurLimit > 0 ? perDurLimit : "∞"} for this duration)`);
           }
           if (abortSignal.aborted) break;
+          console.log(`  [${dur}s] Done: ${durCount} clips encoded`);
         }
 
         activeGenerations.delete(found.id);

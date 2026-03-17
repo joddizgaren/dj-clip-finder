@@ -43,6 +43,8 @@ import {
   MonitorSmartphone,
   Square,
   Sliders,
+  AlertTriangle,
+  PlusCircle,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────
@@ -424,10 +426,14 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
   const [recordingType, setRecording]   = useState<RecordingType>("auto");
   const [outputFormat, setOutputFormat] = useState<OutputFormat>("original");
   const [cropMethod, setCropMethod]     = useState<CropMethod>("blur");
-  const [showClips, setShowClips]       = useState(false);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-  const [showSettings, setShowSettings] = useState(true);
-  const [moreCount, setMoreCount]       = useState<string>("5");
+  const [showClips, setShowClips]         = useState(false);
+  const [showAdvanced, setShowAdvanced]   = useState(false);
+  const [showSettings, setShowSettings]   = useState(true);
+  const [moreCount, setMoreCount]         = useState<string>("5");
+  const [showRegenWarning, setShowRegenWarning] = useState(false);
+
+  const settingsRef        = useRef<HTMLDivElement>(null);
+  const moreClipsSectionRef = useRef<HTMLDivElement>(null);
 
   type GenerateSettings = {
     durations: ClipDuration[];
@@ -454,6 +460,25 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
     if (clips.length > 0 && prevClipCount.current === 0) setShowClips(true);
     prevClipCount.current = clips.length;
   }, [clips.length]);
+
+  // When generation finishes, do one final clip refresh to catch any clip
+  // saved in the last few milliseconds before status flipped to "analyzed".
+  const prevIsGenerating = useRef(false);
+  useEffect(() => {
+    if (prevIsGenerating.current && !isGenerating) {
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ["/api/uploads", upload.id, "clips"] });
+      }, 600);
+    }
+    prevIsGenerating.current = isGenerating;
+  }, [isGenerating, queryClient, upload.id]);
+
+  // When settings panel is revealed, scroll it into view
+  useEffect(() => {
+    if (showSettings && settingsRef.current) {
+      setTimeout(() => settingsRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 60);
+    }
+  }, [showSettings]);
 
   useQuery<Upload>({
     queryKey: ["/api/uploads", upload.id],
@@ -601,7 +626,7 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
 
         {/* Generate controls */}
         {upload.status === "analyzed" && showSettings && (
-          <div className="flex flex-col gap-4">
+          <div className="flex flex-col gap-4" ref={settingsRef}>
 
             {/* Clip durations */}
             <div>
@@ -671,9 +696,9 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
 
             {/* Advanced options toggle */}
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
-              className="justify-start px-0 gap-1.5 text-xs text-muted-foreground h-auto"
+              className="justify-start gap-1.5 text-xs h-7 text-muted-foreground border-dashed self-start"
               onClick={() => setShowAdvanced(v => !v)}
               data-testid={`button-advanced-toggle-${upload.id}`}
             >
@@ -820,7 +845,13 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
             <Button
               className="gap-2"
               disabled={selectedDurations.length === 0 || generateMutation.isPending}
-              onClick={() => generateMutation.mutate()}
+              onClick={() => {
+                if (clips.length > 0) {
+                  setShowRegenWarning(true);
+                } else {
+                  generateMutation.mutate();
+                }
+              }}
               data-testid={`button-generate-${upload.id}`}
             >
               {generateMutation.isPending ? (
@@ -903,50 +934,102 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
 
             {/* Generate more / change settings — shown after generation finishes */}
             {!isGenerating && upload.status === "analyzed" && lastSettings && (
-              <div className="border-t border-border/50 pt-3 flex flex-col gap-3">
-                <p className="text-xs font-medium text-muted-foreground">Want more clips?</p>
+              <div className="border-t border-border/50 pt-3 flex flex-col gap-3" ref={moreClipsSectionRef}>
+                <p className="text-xs font-medium text-foreground">Generate more clips</p>
+
+                {/* Same settings row */}
                 <div className="flex flex-wrap gap-2 items-center">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground shrink-0">Generate</span>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={moreCount}
-                      onChange={e => setMoreCount(e.target.value)}
-                      className="w-16 h-7 text-sm"
-                      data-testid={`input-more-count-${upload.id}`}
-                    />
-                    <span className="text-xs text-muted-foreground shrink-0">more with same settings</span>
-                    <Button
-                      size="sm"
-                      className="h-7 text-xs px-3 gap-1.5"
-                      disabled={appendMutation.isPending}
-                      onClick={() => appendMutation.mutate()}
-                      data-testid={`button-append-${upload.id}`}
-                    >
-                      {appendMutation.isPending ? (
-                        <Loader2 className="w-3 h-3 animate-spin" />
-                      ) : (
-                        <Scissors className="w-3 h-3" />
-                      )}
-                      Generate
-                    </Button>
-                  </div>
+                  <span className="text-xs text-muted-foreground shrink-0">Add</span>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={moreCount}
+                    onChange={e => setMoreCount(e.target.value)}
+                    className="w-16 h-8 text-sm"
+                    data-testid={`input-more-count-${upload.id}`}
+                  />
+                  <span className="text-xs text-muted-foreground shrink-0">more clips with the same settings</span>
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs px-3 gap-1.5"
+                    disabled={appendMutation.isPending}
+                    onClick={() => appendMutation.mutate()}
+                    data-testid={`button-append-${upload.id}`}
+                  >
+                    {appendMutation.isPending ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <PlusCircle className="w-3 h-3" />
+                    )}
+                    Add clips
+                  </Button>
                 </div>
+
+                {/* Different settings button — prominent */}
                 <Button
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  className="justify-start px-0 gap-1.5 text-xs text-muted-foreground h-auto w-fit"
+                  className="gap-2 self-start text-sm"
                   onClick={() => setShowSettings(true)}
                   data-testid={`button-change-settings-${upload.id}`}
                 >
-                  <Sliders className="w-3 h-3" />
+                  <Sliders className="w-4 h-4" />
                   Generate with different settings
                 </Button>
               </div>
             )}
           </div>
         )}
+
+        {/* Warning: regenerating will delete existing clips */}
+        <Dialog open={showRegenWarning} onOpenChange={setShowRegenWarning}>
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-amber-500" />
+                Replace existing clips?
+              </DialogTitle>
+              <DialogDescription className="text-sm leading-relaxed pt-1">
+                You already have <strong>{clips.length}</strong> generated clip{clips.length !== 1 ? "s" : ""}.
+                Generating new clips will <strong>permanently delete</strong> them.
+                <br /><br />
+                If you want to keep them, use the <em>"Add more clips"</em> option below instead.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter className="flex flex-col gap-2 sm:flex-col">
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  setShowRegenWarning(false);
+                  setShowClips(true);
+                  setTimeout(() => moreClipsSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" }), 120);
+                }}
+              >
+                <PlusCircle className="w-4 h-4 text-primary" />
+                Add more clips instead
+              </Button>
+              <Button
+                variant="destructive"
+                className="w-full justify-start gap-2"
+                onClick={() => {
+                  setShowRegenWarning(false);
+                  generateMutation.mutate();
+                }}
+              >
+                <Scissors className="w-4 h-4" />
+                Delete existing &amp; generate new
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full"
+                onClick={() => setShowRegenWarning(false)}
+              >
+                Cancel — keep my clips
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </CardContent>
     </Card>
   );
