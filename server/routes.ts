@@ -87,51 +87,53 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return res.status(400).json({ message: "Native picker only available on Windows" });
     }
     try {
-      const { exec } = await import("child_process");
-      const { promisify } = await import("util");
-      const { writeFileSync, unlinkSync } = await import("fs");
+      const { spawn } = await import("child_process");
+      const { writeFileSync, unlinkSync, existsSync, readFileSync } = await import("fs");
       const { join } = await import("path");
       const { tmpdir } = await import("os");
-      const execAsync = promisify(exec);
 
-      // Write script to a temp .ps1 file to avoid quoting issues
-      const scriptPath = join(tmpdir(), `djclip_picker_${Date.now()}.ps1`);
-      const ps = [
+      const ts = Date.now();
+      const scriptPath = join(tmpdir(), `djclip_pick_${ts}.ps1`);
+      const resultPath = join(tmpdir(), `djclip_result_${ts}.txt`);
+
+      // Simple script — no owner form tricks, just a plain dialog
+      // Result is written to a temp file so stdout capture isn't needed
+      const script = [
         "Add-Type -AssemblyName System.Windows.Forms",
-        "Add-Type -AssemblyName System.Drawing",
-        "$dialog = New-Object System.Windows.Forms.OpenFileDialog",
-        "$dialog.Title  = 'Select DJ Set Recording'",
-        "$dialog.Filter = 'Video Files|*.mp4;*.mov;*.avi;*.webm;*.mkv|All Files|*.*'",
-        "$dialog.Multiselect = $false",
-        "$owner = New-Object System.Windows.Forms.Form",
-        "$owner.TopMost = $true",
-        "$owner.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual",
-        "$owner.Location = New-Object System.Drawing.Point(200, 200)",
-        "$owner.Size = New-Object System.Drawing.Size(1, 1)",
-        "$owner.ShowInTaskbar = $false",
-        "$owner.Show()",
-        "$owner.BringToFront()",
-        "$null = $dialog.ShowDialog($owner)",
-        "$owner.Dispose()",
-        "if ($dialog.FileName) { Write-Output $dialog.FileName }",
+        `$out = '${resultPath.replace(/\\/g, "\\\\")}'`,
+        "try {",
+        "  $d = New-Object System.Windows.Forms.OpenFileDialog",
+        "  $d.Title = 'Select DJ Set Recording'",
+        "  $d.Filter = 'Video Files|*.mp4;*.mov;*.avi;*.webm;*.mkv|All Files|*.*'",
+        "  $d.Multiselect = $false",
+        "  if ($d.ShowDialog() -eq 'OK') { [IO.File]::WriteAllText($out, $d.FileName) }",
+        "  else { [IO.File]::WriteAllText($out, '') }",
+        "} catch { [IO.File]::WriteAllText($out, '') }",
       ].join("\r\n");
 
-      writeFileSync(scriptPath, ps, "utf8");
+      writeFileSync(scriptPath, script, "utf8");
 
-      let stdout = "";
-      try {
-        // windowsHide: false is critical — lets the child process show GUI windows
-        const result = await execAsync(
-          `powershell -NoProfile -STA -ExecutionPolicy Bypass -File "${scriptPath}"`,
-          { timeout: 5 * 60 * 1000, windowsHide: false }
-        );
-        stdout = result.stdout;
-      } finally {
-        try { unlinkSync(scriptPath); } catch {}
+      // Launch as a fully detached, independent process so Windows gives it
+      // proper access to the interactive desktop (dialog can appear on screen)
+      const child = spawn("powershell.exe", [
+        "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File", scriptPath,
+      ], { detached: true, stdio: "ignore", windowsHide: false });
+      child.unref();
+
+      // Poll for the result file every 300ms, up to 5 minutes
+      const deadline = Date.now() + 5 * 60 * 1000;
+      let filePath: string | null = null;
+      while (Date.now() < deadline) {
+        await new Promise(r => setTimeout(r, 300));
+        if (existsSync(resultPath)) {
+          filePath = readFileSync(resultPath, "utf8").trim() || null;
+          try { unlinkSync(resultPath); } catch {}
+          break;
+        }
       }
 
-      const filePath = stdout.trim();
-      res.json({ filePath: filePath || null });
+      try { unlinkSync(scriptPath); } catch {}
+      res.json({ filePath });
     } catch (err) {
       res.status(500).json({ message: "Native file picker failed: " + String(err) });
     }
