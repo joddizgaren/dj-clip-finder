@@ -87,20 +87,24 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return res.status(400).json({ message: "Native picker only available on Windows" });
     }
     try {
-      const { spawn } = await import("child_process");
+      const { exec } = await import("child_process");
+      const { promisify } = await import("util");
       const { writeFileSync, unlinkSync, existsSync, readFileSync } = await import("fs");
       const { join } = await import("path");
       const { tmpdir } = await import("os");
+      const execAsync = promisify(exec);
 
       const ts = Date.now();
       const scriptPath = join(tmpdir(), `djclip_pick_${ts}.ps1`);
       const resultPath = join(tmpdir(), `djclip_result_${ts}.txt`);
 
-      // Simple script — no owner form tricks, just a plain dialog
-      // Result is written to a temp file so stdout capture isn't needed
+      // Paths need double-backslashes inside PowerShell strings
+      const psScriptPath  = scriptPath.replace(/\\/g, "\\\\");
+      const psResultPath  = resultPath.replace(/\\/g, "\\\\");
+
       const script = [
         "Add-Type -AssemblyName System.Windows.Forms",
-        `$out = '${resultPath.replace(/\\/g, "\\\\")}'`,
+        `$out = '${psResultPath}'`,
         "try {",
         "  $d = New-Object System.Windows.Forms.OpenFileDialog",
         "  $d.Title = 'Select DJ Set Recording'",
@@ -113,26 +117,21 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       writeFileSync(scriptPath, script, "utf8");
 
-      // Launch as a fully detached, independent process so Windows gives it
-      // proper access to the interactive desktop (dialog can appear on screen)
-      const child = spawn("powershell.exe", [
-        "-NoProfile", "-STA", "-ExecutionPolicy", "Bypass", "-File", scriptPath,
-      ], { detached: true, stdio: "ignore", windowsHide: false });
-      child.unref();
+      // Use cmd.exe's START /WAIT to launch PowerShell in its own interactive
+      // window — this is the only reliable way to get a GUI dialog from a
+      // Node.js child process on Windows. The dialog result goes to a temp file.
+      await execAsync(
+        `start "" /wait powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File "${psScriptPath}"`,
+        { shell: true, timeout: 5 * 60 * 1000 }
+      );
 
-      // Poll for the result file every 300ms, up to 5 minutes
-      const deadline = Date.now() + 5 * 60 * 1000;
       let filePath: string | null = null;
-      while (Date.now() < deadline) {
-        await new Promise(r => setTimeout(r, 300));
-        if (existsSync(resultPath)) {
-          filePath = readFileSync(resultPath, "utf8").trim() || null;
-          try { unlinkSync(resultPath); } catch {}
-          break;
-        }
+      if (existsSync(resultPath)) {
+        filePath = readFileSync(resultPath, "utf8").trim() || null;
+        try { unlinkSync(resultPath); } catch {}
       }
-
       try { unlinkSync(scriptPath); } catch {}
+
       res.json({ filePath });
     } catch (err) {
       res.status(500).json({ message: "Native file picker failed: " + String(err) });

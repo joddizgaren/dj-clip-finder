@@ -846,7 +846,8 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
 export default function Home() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const [showBrowser, setShowBrowser] = useState(false);
+  const [showBrowser, setShowBrowser]    = useState(false);
+  const [openingPicker, setOpeningPicker] = useState(false);
 
   const { data: uploads = [], isLoading } = useQuery<Upload[]>({
     queryKey: ["/api/uploads"],
@@ -923,19 +924,38 @@ export default function Home() {
           <Button
             size="lg"
             className="gap-2 w-full sm:w-auto"
-            disabled={localPathMutation.isPending}
-            onClick={() => setShowBrowser(true)}
+            disabled={localPathMutation.isPending || openingPicker}
+            onClick={async () => {
+              setOpeningPicker(true);
+              try {
+                const res = await fetch("/api/browse-native", { method: "POST" });
+                if (!res.ok) {
+                  setShowBrowser(true);
+                  return;
+                }
+                const { filePath } = await res.json();
+                if (filePath) localPathMutation.mutate(filePath);
+              } catch {
+                setShowBrowser(true);
+              } finally {
+                setOpeningPicker(false);
+              }
+            }}
             data-testid="button-browse-open"
           >
-            {localPathMutation.isPending ? (
+            {localPathMutation.isPending || openingPicker ? (
               <Loader2 className="w-4 h-4 animate-spin" />
             ) : (
               <FolderOpen className="w-4 h-4" />
             )}
-            {localPathMutation.isPending ? "Adding file…" : "Browse & add DJ set"}
+            {localPathMutation.isPending
+              ? "Adding file…"
+              : openingPicker
+              ? "Opening file picker…"
+              : "Browse & add DJ set"}
           </Button>
           <p className="text-xs text-muted-foreground mt-2">
-            Navigate to your video file, or paste its full path directly.
+            Opens Windows file picker. Navigate to your video file, or paste its full path directly.
           </p>
         </div>
 
