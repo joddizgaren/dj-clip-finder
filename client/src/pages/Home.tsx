@@ -386,19 +386,7 @@ function ClipCard({
       <CardContent className="p-4 flex flex-col gap-3 flex-1">
         {/* Header */}
         <div className="flex items-start justify-between gap-2">
-          <div className="flex flex-col gap-1">
-            <span className="text-sm font-semibold text-foreground">{label}</span>
-            <span className="text-xs text-muted-foreground">
-              {formatTime(clip.startTime)} – {formatTime(clip.endTime)}
-            </span>
-            {clip.outputFormat && clip.outputFormat !== "original" && (
-              <div className="mt-0.5">
-                <Badge variant="outline" className="text-xs px-1.5 py-0 h-4">
-                  {clip.outputFormat}
-                </Badge>
-              </div>
-            )}
-          </div>
+          <span className="text-sm font-semibold text-foreground">{label}</span>
           <div
             className="flex items-center gap-1 text-xs text-muted-foreground shrink-0"
             data-testid={`text-energy-${clip.id}`}
@@ -406,6 +394,34 @@ function ClipCard({
             <Zap className="w-3 h-3 text-chart-4" />
             {clip.energyLevel}%
           </div>
+        </div>
+
+        {/* Settings strip */}
+        <div className="flex flex-wrap gap-1.5 text-xs text-muted-foreground">
+          <span className="flex items-center gap-1 bg-muted/50 rounded px-1.5 py-0.5">
+            <span className="font-medium text-foreground/60">⏱</span>
+            {clip.duration}s
+          </span>
+          {clip.buildUp && clip.buildUp !== "none" && (
+            <span className="flex items-center gap-1 bg-muted/50 rounded px-1.5 py-0.5 capitalize">
+              <span className="font-medium text-foreground/60">↑</span>
+              {clip.buildUp === "auto" ? "DJ build-up" : `${clip.buildUp} build-up`}
+            </span>
+          )}
+          {clip.outputFormat && clip.outputFormat !== "original" ? (
+            <span className="flex items-center gap-1 bg-muted/50 rounded px-1.5 py-0.5">
+              <span className="font-medium text-foreground/60">⬜</span>
+              {clip.outputFormat}
+            </span>
+          ) : (
+            <span className="flex items-center gap-1 bg-muted/50 rounded px-1.5 py-0.5">
+              <span className="font-medium text-foreground/60">⬜</span>
+              Original ratio
+            </span>
+          )}
+          <span className="flex items-center gap-1 bg-muted/50 rounded px-1.5 py-0.5 text-xs text-muted-foreground">
+            {formatTime(clip.startTime)}–{formatTime(clip.endTime)}
+          </span>
         </div>
 
         <Progress value={clip.energyLevel} className="h-1" />
@@ -685,26 +701,48 @@ function ClipGroup({
           {topClip.energyLevel}%
         </div>
         {clips.length > 1 && (
-          <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 ml-auto">
-            {clips.length} variants
-          </Badge>
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground tabular-nums">
+              {activeIdx + 1} / {clips.length}
+            </span>
+            <div className="flex items-center gap-1">
+              <button
+                className={cn(
+                  "w-6 h-6 rounded-full border flex items-center justify-center transition-colors",
+                  canScrollLeft
+                    ? "border-border bg-muted hover:bg-muted/80 text-foreground"
+                    : "border-border/30 text-muted-foreground/30 cursor-default"
+                )}
+                onClick={() => canScrollLeft && scroll("left")}
+                aria-label="Previous clip"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+              </button>
+              <button
+                className={cn(
+                  "w-6 h-6 rounded-full border flex items-center justify-center transition-colors",
+                  canScrollRight
+                    ? "border-primary/50 bg-primary text-primary-foreground hover:bg-primary/90"
+                    : "border-border/30 text-muted-foreground/30 cursor-default"
+                )}
+                onClick={() => canScrollRight && scroll("right")}
+                aria-label="Next clip"
+              >
+                <ChevronRightIcon className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          </div>
         )}
       </div>
 
       {/* Clips row */}
       <div className="relative">
-        {/* Left fade + arrow */}
-        {canScrollLeft && (
-          <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center pointer-events-none" style={{ width: 48 }}>
-            <div className="absolute inset-0 bg-gradient-to-r from-card to-transparent" />
-            <button
-              className="relative pointer-events-auto ml-1 w-8 h-8 rounded-full bg-card border border-border shadow-md flex items-center justify-center text-foreground hover:bg-muted transition-colors"
-              onClick={() => scroll("left")}
-              aria-label="Scroll left"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-          </div>
+        {/* Right-edge gradient fade — signals there's more to scroll */}
+        {canScrollRight && (
+          <div
+            className="absolute right-0 top-0 bottom-0 z-10 pointer-events-none w-16"
+            style={{ background: "linear-gradient(to left, var(--card-bg-hint, hsl(var(--card))), transparent)" }}
+          />
         )}
 
         <div
@@ -720,48 +758,14 @@ function ClipGroup({
             >
               <ClipCard
                 clip={clip}
-                label={idx === 0 ? `${clip.duration}s clip` : `Variant: ${clip.duration}s${clip.outputFormat && clip.outputFormat !== "original" ? ` · ${clip.outputFormat}` : ""}`}
+                label={idx === 0 ? `${clip.duration}s clip` : `Variant ${idx + 1}: ${clip.duration}s`}
                 onDelete={onDeleteClip}
                 upload={upload}
               />
             </div>
           ))}
         </div>
-
-        {/* Right fade + arrow */}
-        {canScrollRight && (
-          <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center justify-end pointer-events-none" style={{ width: 48 }}>
-            <div className="absolute inset-0 bg-gradient-to-l from-card to-transparent" />
-            <button
-              className="relative pointer-events-auto mr-1 w-8 h-8 rounded-full bg-card border border-border shadow-md flex items-center justify-center text-foreground hover:bg-muted transition-colors"
-              onClick={() => scroll("right")}
-              aria-label="Scroll right"
-            >
-              <ChevronRightIcon className="w-4 h-4" />
-            </button>
-          </div>
-        )}
       </div>
-
-      {/* Dot indicators */}
-      {!isSingle && (
-        <div className="flex justify-center gap-1.5 pt-1">
-          {clips.map((_, idx) => (
-            <button
-              key={idx}
-              onClick={() => scrollRef.current?.scrollTo({ left: idx * (scrollRef.current.scrollWidth / clips.length), behavior: "smooth" })}
-              className="rounded-full transition-all duration-200"
-              style={{
-                width: idx === activeIdx ? 14 : 5,
-                height: 5,
-                background: "currentColor",
-                opacity: idx === activeIdx ? 0.8 : 0.25,
-              }}
-              aria-label={`Go to clip ${idx + 1}`}
-            />
-          ))}
-        </div>
-      )}
     </div>
   );
 }

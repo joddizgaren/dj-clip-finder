@@ -61,14 +61,15 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Auto-migrate: add peak_time column if it doesn't exist yet (local DBs may be behind)
-  try {
-    await pool.query(`
-      ALTER TABLE clips ADD COLUMN IF NOT EXISTS peak_time integer DEFAULT 0 NOT NULL
-    `);
-  } catch (e) {
-    // Non-fatal — column likely already exists or DB doesn't support IF NOT EXISTS
-    console.warn("Migration warning:", (e as Error).message);
+  // Auto-migrate: add any missing columns (local DBs may be behind cloud schema)
+  const migrations = [
+    `ALTER TABLE clips ADD COLUMN IF NOT EXISTS peak_time integer DEFAULT 0 NOT NULL`,
+    `ALTER TABLE clips ADD COLUMN IF NOT EXISTS build_up text DEFAULT 'short'`,
+  ];
+  for (const sql of migrations) {
+    try { await pool.query(sql); } catch (e) {
+      console.warn("Migration warning:", (e as Error).message);
+    }
   }
 
   await registerRoutes(httpServer, app);

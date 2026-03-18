@@ -31,6 +31,7 @@ export const clips = pgTable("clips", {
   highlightType: text("highlight_type").notNull(),
   energyLevel: integer("energy_level").notNull(), // 0-100
   outputFormat: text("output_format").default("original"), // original, 9:16, 3:4, 4:5, 1:1, 16:9
+  buildUp: text("build_up").default("short"), // none, short, medium, long, auto
   createdAt: timestamp("created_at").defaultNow(),
 });
 

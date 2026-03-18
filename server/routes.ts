@@ -475,6 +475,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
               highlightType: peak.type,
               energyLevel: peak.energyLevel,
               outputFormat: resolvedOutputFormat,
+              buildUp: resolvedBuildUp,
             });
 
             durCount++;
@@ -561,6 +562,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         highlightType: clip.highlightType,
         energyLevel: clip.energyLevel,
         outputFormat: resolvedOutputFormat,
+        buildUp: resolvedBuildUp,
       });
 
       console.log(`Variant created: ${clipFilename} (peak@${clip.peakTime}s, ${dur}s, ${resolvedOutputFormat})`);
