@@ -1407,7 +1407,7 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
                 <Loader2 className="w-3 h-3 animate-spin shrink-0" />
                 <span>
                   {genProgress && genProgress.total > 0
-                    ? `Encoding clip ${genProgress.current} of ${genProgress.total}…`
+                    ? `Encoding clip ${genProgress.current + 1} of ${genProgress.total}…`
                     : clips.length > 0
                       ? `${clips.length} clip${clips.length > 1 ? "s" : ""} ready so far — still encoding…`
                       : "Analysing audio and encoding clips…"}
