@@ -1,0 +1,38 @@
+
+ ============================================
+  DJ Clip Studio ÔÇö Starting...
+ ============================================
+
+ The browser will open automatically in 8 seconds.
+ Keep this window open while using the app.
+ Close it to stop the server.
+
+12:47:45 AM [express] serving on port 5000
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+12:47:53 AM [express] GET /api/uploads 304 in 65ms :: [{"id":"304d292d-ca1d-427b-8c53-9f3f71c242c9","filename":"IMG_0479.MOV","filePath":"C:\\Users\\jgarr\\Downloads\\IMG_0479.MOV","duration":3687,"videoWidth":1080,"videoHeight":1920,"status":"analyzed","error":null,"peaksCache":{"peaks":[{"time":1632,"energyLevel":70,"type":"drop"},{"time":1750,"energyLevel":64,"type":"build"},{"time":3476,"energyLevel":60,"type":"drop"},{"time":2980,"energyLevel":58,"type":"transition"},{"time":1316,"energyLevel":57,"type":"transition"},{"time":2870,"energyLevel":55,"type":"drop"},{"time":2756,"energyLevel":53,"type":"drop"},{"time":3258,"energyLevel":52,"type":"build"},{"time":1246,"energyLevel":51,"type":"drop"},{"time":1968,"energyLevel":51,"type":"build"},{"time":2152,"energyLevel":51,"type":"transition"},{"time":3174,"energyLevel":51,"type":"build"},{"time":1162,"energyLevel":49,"type":"drop"},{"time":2654,"energyLevel":49,"type":"transition"},{"time":2094,"energyLevel":48,"type":"drop"},{"time":1500,"energyLevel":47,"type":"drop"},{"time":2596,"energyLevel":47,"type":"transition"},{"time":2390,"energyLevel":44,"type":"build"},{"time":1050,"energyLevel":43,"type":"transition"},{"time":1374,"energyLevel":41,"type":"transition"},{"time":2310,"energyLevel":41,"type":"transition"},{"time":3416,"energyLevel":40,"type":"drop"},{"time":990,"energyLevel":38,"type":"transition"},{"time":926,"energyLevel":35,"type":"build"},{"time":828,"energyLevel":34,"type":"transition"},{"time":396,"energyLevel":27,"type":"transition"},{"time":686,"energyLevel":27,"type":"transition"},{"time":3620,"energyLevel":27,"type":"transition"}],"sensitivity":"balanced","recordingType":"auto"},"createdAt":"2026-03-18T23:52:17.544Z"}]
+Internal Server Error: error: column "peak_time" does not exist
+    at C:\DJ-Clip-Finder\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async <anonymous> (C:\DJ-Clip-Finder\node_modules\src\node-postgres\session.ts:104:19)
+    at async DatabaseStorage.getClipsByUpload (C:\DJ-Clip-Finder\server\storage.ts:51:12)
+    at async <anonymous> (C:\DJ-Clip-Finder\server\routes.ts:295:25) {
+  length: 170,
+  severity: 'ERROR',
+  code: '42703',
+  detail: undefined,
+  hint: 'Perhaps you meant to reference the column "clips.end_time".',
+  position: '65',
+  internalPosition: undefined,
+  internalQuery: undefined,
+  where: undefined,
+  schema: undefined,
+  table: undefined,
+  column: undefined,
+  dataType: undefined,
+  constraint: undefined,
+  file: 'parse_relation.c',
+  line: '3838',
+  routine: 'errorMissingColumn'
+}
+12:47:53 AM [express] GET /api/uploads/304d292d-ca1d-427b-8c53-9f3f71c242c9/clips 500 in 22ms :: {"message":"column \"peak_time\" does not exist"}

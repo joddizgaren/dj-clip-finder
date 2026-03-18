@@ -2,6 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { createServer } from "http";
+import { pool } from "./db";
 
 const app = express();
 const httpServer = createServer(app);
@@ -60,6 +61,16 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Auto-migrate: add peak_time column if it doesn't exist yet (local DBs may be behind)
+  try {
+    await pool.query(`
+      ALTER TABLE clips ADD COLUMN IF NOT EXISTS peak_time integer DEFAULT 0 NOT NULL
+    `);
+  } catch (e) {
+    // Non-fatal — column likely already exists or DB doesn't support IF NOT EXISTS
+    console.warn("Migration warning:", (e as Error).message);
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
