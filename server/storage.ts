@@ -21,21 +21,21 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getUploads(): Promise<Upload[]> {
-    return await db.select().from(uploads).orderBy(uploads.createdAt);
+    return await db!.select().from(uploads).orderBy(uploads.createdAt);
   }
 
   async getUpload(id: string): Promise<Upload | undefined> {
-    const results = await db.select().from(uploads).where(eq(uploads.id, id));
+    const results = await db!.select().from(uploads).where(eq(uploads.id, id));
     return results[0];
   }
 
   async createUpload(upload: InsertUpload): Promise<Upload> {
-    const results = await db.insert(uploads).values(upload).returning();
+    const results = await db!.insert(uploads).values(upload).returning();
     return results[0];
   }
 
   async updateUpload(id: string, updates: Partial<Upload>): Promise<Upload> {
-    const results = await db
+    const results = await db!
       .update(uploads)
       .set(updates)
       .where(eq(uploads.id, id))
@@ -44,11 +44,11 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUpload(id: string): Promise<void> {
-    await db.delete(uploads).where(eq(uploads.id, id));
+    await db!.delete(uploads).where(eq(uploads.id, id));
   }
 
   async getClipsByUpload(uploadId: string): Promise<Clip[]> {
-    return await db
+    return await db!
       .select()
       .from(clips)
       .where(eq(clips.uploadId, uploadId))
@@ -56,22 +56,36 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getClip(id: string): Promise<Clip | undefined> {
-    const results = await db.select().from(clips).where(eq(clips.id, id));
+    const results = await db!.select().from(clips).where(eq(clips.id, id));
     return results[0];
   }
 
   async createClip(clip: InsertClip): Promise<Clip> {
-    const results = await db.insert(clips).values(clip).returning();
+    const results = await db!.insert(clips).values(clip).returning();
     return results[0];
   }
 
   async deleteClipsByUpload(uploadId: string): Promise<void> {
-    await db.delete(clips).where(eq(clips.uploadId, uploadId));
+    await db!.delete(clips).where(eq(clips.uploadId, uploadId));
   }
 
   async deleteClip(id: string): Promise<void> {
-    await db.delete(clips).where(eq(clips.id, id));
+    await db!.delete(clips).where(eq(clips.id, id));
   }
 }
 
-export const storage = new DatabaseStorage();
+// In Electron mode, use SQLite. Otherwise use PostgreSQL via Drizzle.
+function createStorage(): IStorage {
+  if (process.env.ELECTRON_APP === "true") {
+    const path = require("path") as typeof import("path");
+    const { initSQLite, SQLiteStorage } = require("./storage.sqlite") as typeof import("./storage.sqlite");
+    const dbPath =
+      process.env.SQLITE_DB_PATH ||
+      path.join(process.cwd(), "app.db");
+    initSQLite(dbPath);
+    return new SQLiteStorage();
+  }
+  return new DatabaseStorage();
+}
+
+export const storage = createStorage();

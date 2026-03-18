@@ -61,6 +61,46 @@ A web application that automatically detects highlight moments (drops, peaks) in
 - Uploads dir: `./uploads/` (kept for multer compatibility but upload route removed)
 - User's original video files: **never deleted** — only clips in `./clips/` are removed
 
+## Windows Installer (Electron Packaging)
+
+The app can be packaged as a standard Windows `.exe` installer using Electron:
+
+### Architecture
+- **Electron main process**: `electron/main.ts` → compiled to `dist/electron/main.cjs`
+  - Forks the Express server via `utilityProcess.fork()` (Electron 22+)
+  - Opens a `BrowserWindow` pointing to `http://localhost:5001`
+  - Auto-updater via `electron-updater` pointing to `joddizgaren/dj-clip-finder` GitHub releases
+- **Electron server mode**: `ELECTRON_APP=true` → uses SQLite (`better-sqlite3`) instead of PostgreSQL
+  - SQLite storage: `server/storage.sqlite.ts` implements `IStorage` with raw SQL
+  - `initSQLite(dbPath)` called from `server/storage.ts` in Electron mode
+  - DB file: `%APPDATA%\DJ Clip Studio\djclipstudio.db`
+  - Clips: `%APPDATA%\DJ Clip Studio\clips\`
+- **FFmpeg**: bundled in `electron/ffmpeg/ffmpeg.exe` + `ffprobe.exe`, detected via `FFMPEG_BIN_DIR` env var
+- **Frontend**: compiled with Vite to `dist/electron/public/`, served by Express from `ELECTRON_PUBLIC_PATH`
+
+### Build on Windows
+1. Install Node.js from https://nodejs.org (LTS)
+2. Download FFmpeg: https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+   - Extract `ffmpeg.exe` + `ffprobe.exe` into `electron/ffmpeg/`
+3. (Optional) Add `electron/build-resources/icon.ico` — app icon
+4. Run: **`Build Installer.bat`** (double-click)
+   - Or: `npx tsx script/build.electron.ts`
+5. Installer appears in `release/DJ Clip Studio Setup 1.0.0.exe`
+
+### Auto-updates
+- Publish a GitHub Release at `joddizgaren/dj-clip-finder` and upload the `.exe`
+- On next startup, installed apps detect the new release and prompt the user to update
+- Uses `electron-updater` with `provider: github`
+
+### Key environment variables in Electron mode
+| Variable | Set by | Purpose |
+|---|---|---|
+| `ELECTRON_APP` | Electron main | Switch from PostgreSQL → SQLite |
+| `SQLITE_DB_PATH` | Electron main | Path to the local `.db` file |
+| `CLIPS_DIR` | Electron main | Where generated clips are saved |
+| `FFMPEG_BIN_DIR` | Electron main | Path to bundled ffmpeg directory |
+| `ELECTRON_PUBLIC_PATH` | Electron main | Path to compiled frontend files |
+
 ## Planned Features (not yet built)
 
 - Multi-band weights already use Gemini-recommended ratios: sub-bass 60%/20%, high-mids 10%/40% cable/mic

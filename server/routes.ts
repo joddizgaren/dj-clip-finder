@@ -17,7 +17,7 @@ import {
 } from "./audioAnalyzer";
 import type { PeaksCache } from "@shared/schema";
 
-const CLIPS_DIR = path.resolve("clips");
+const CLIPS_DIR = process.env.CLIPS_DIR || path.resolve("clips");
 
 if (!fs.existsSync(CLIPS_DIR)) fs.mkdirSync(CLIPS_DIR, { recursive: true });
 
@@ -61,7 +61,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       return res.status(400).json({ message: "Provide a valid ?path= parameter" });
     }
     try {
-      const { stdout } = await execAsync("ffprobe", [
+      const ffprobe = process.env.FFMPEG_BIN_DIR
+        ? path.join(process.env.FFMPEG_BIN_DIR, process.platform === "win32" ? "ffprobe.exe" : "ffprobe")
+        : "ffprobe";
+      const { stdout } = await execAsync(ffprobe, [
         "-v", "quiet", "-print_format", "json", "-show_format", "-show_streams", filePath,
       ]);
       const parsed = JSON.parse(stdout);

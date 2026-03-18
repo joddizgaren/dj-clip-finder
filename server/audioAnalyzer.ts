@@ -4,6 +4,17 @@ import path from "path";
 
 const execFileAsync = promisify(execFile);
 
+// In Electron mode, FFMPEG_BIN_DIR is set to the bundled ffmpeg directory.
+// Otherwise, ffmpeg/ffprobe are assumed to be on PATH.
+function getFfmpegBin(name: "ffmpeg" | "ffprobe"): string {
+  const dir = process.env.FFMPEG_BIN_DIR;
+  if (dir) {
+    const ext = process.platform === "win32" ? ".exe" : "";
+    return path.join(dir, name + ext);
+  }
+  return name;
+}
+
 export type BuildUp = "none" | "short" | "medium" | "long" | "auto";
 export type Sensitivity = "conservative" | "balanced" | "aggressive";
 export type RecordingType = "cable" | "mic" | "auto";
@@ -34,7 +45,7 @@ export interface VideoInfo {
  * rotation and swap width/height when needed.
  */
 export async function getVideoInfo(filePath: string): Promise<VideoInfo> {
-  const { stdout } = await execFileAsync("ffprobe", [
+  const { stdout } = await execFileAsync(getFfmpegBin("ffprobe"), [
     "-v", "quiet",
     "-print_format", "json",
     "-show_format",
@@ -107,7 +118,7 @@ function extractPcm(filePath: string, audioFilter?: string): Promise<Buffer> {
     if (audioFilter) args.push("-af", audioFilter);
     args.push("-ac", "1", "-ar", "100", "-f", "s16le", "pipe:1");
 
-    const ff = spawn("ffmpeg", args);
+    const ff = spawn(getFfmpegBin("ffmpeg"), args);
     ff.stdout.on("data", (chunk: Buffer) => chunks.push(chunk));
     ff.on("close", (code) => {
       if (chunks.length === 0) {
@@ -487,7 +498,7 @@ export async function extractClip(
     "-movflags", "+faststart",
   ];
 
-  await execFileAsync("ffmpeg", [
+  await execFileAsync(getFfmpegBin("ffmpeg"), [
     ...baseArgs,
     ...filterArgs,
     ...encodeArgs,

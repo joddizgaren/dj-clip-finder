@@ -61,16 +61,19 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Auto-migrate: add any missing columns (local DBs may be behind cloud schema)
-  const migrations = [
-    `ALTER TABLE clips ADD COLUMN IF NOT EXISTS peak_time integer DEFAULT 0 NOT NULL`,
-    `ALTER TABLE clips ADD COLUMN IF NOT EXISTS build_up text DEFAULT 'short'`,
-  ];
-  for (const sql of migrations) {
-    try { await pool.query(sql); } catch (e) {
-      console.warn("Migration warning:", (e as Error).message);
+  if (pool) {
+    // PostgreSQL mode: run startup migrations for any missing columns
+    const migrations = [
+      `ALTER TABLE clips ADD COLUMN IF NOT EXISTS peak_time integer DEFAULT 0 NOT NULL`,
+      `ALTER TABLE clips ADD COLUMN IF NOT EXISTS build_up text DEFAULT 'short'`,
+    ];
+    for (const sql of migrations) {
+      try { await pool.query(sql); } catch (e) {
+        console.warn("Migration warning:", (e as Error).message);
+      }
     }
   }
+  // SQLite mode: tables are created by initSQLite() inside storage.ts
 
   await registerRoutes(httpServer, app);
 

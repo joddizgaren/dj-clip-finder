@@ -1,0 +1,191 @@
+import { app, BrowserWindow, shell, dialog, ipcMain, utilityProcess } from "electron";
+import { autoUpdater } from "electron-updater";
+import path from "path";
+import * as fs from "fs";
+import * as net from "net";
+
+// __dirname is available in the CJS output that esbuild produces from this file
+declare const __dirname: string;
+
+const PORT = 5001;
+
+let mainWindow: BrowserWindow | null = null;
+let serverProcess: ReturnType<typeof utilityProcess.fork> | null = null;
+
+// ─── Paths ────────────────────────────────────────────────────────────────────
+
+function getClipsDir(): string {
+  const dir = path.join(app.getPath("userData"), "clips");
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+function getSqliteDbPath(): string {
+  return path.join(app.getPath("userData"), "djclipstudio.db");
+}
+
+function getFfmpegDir(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "ffmpeg")
+    : path.join(__dirname, "..", "electron", "ffmpeg");
+}
+
+function getServerPath(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "server.cjs")
+    : path.join(__dirname, "..", "dist", "electron", "server.cjs");
+}
+
+function getPublicPath(): string {
+  return app.isPackaged
+    ? path.join(process.resourcesPath, "public")
+    : path.join(__dirname, "..", "dist", "electron", "public");
+}
+
+// ─── Server ───────────────────────────────────────────────────────────────────
+
+function startServer(): void {
+  const serverPath = getServerPath();
+
+  if (!fs.existsSync(serverPath)) {
+    dialog.showErrorBox(
+      "Server not found",
+      `Could not find:\n${serverPath}\n\nRun "npm run build:electron" first.`
+    );
+    app.quit();
+    return;
+  }
+
+  serverProcess = utilityProcess.fork(serverPath, [], {
+    env: {
+      ...process.env,
+      ELECTRON_APP: "true",
+      SQLITE_DB_PATH: getSqliteDbPath(),
+      CLIPS_DIR: getClipsDir(),
+      FFMPEG_BIN_DIR: getFfmpegDir(),
+      ELECTRON_PUBLIC_PATH: getPublicPath(),
+      PORT: String(PORT),
+      NODE_ENV: "production",
+    },
+    stdio: "pipe",
+  });
+
+  serverProcess.stdout?.on("data", (d: Buffer) =>
+    process.stdout.write("[server] " + d.toString())
+  );
+  serverProcess.stderr?.on("data", (d: Buffer) =>
+    process.stderr.write("[server] " + d.toString())
+  );
+  serverProcess.on("exit", (code: number) =>
+    console.log("[server] exited with code", code)
+  );
+}
+
+function waitForServer(timeout = 30_000): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const deadline = Date.now() + timeout;
+    const attempt = () => {
+      const client = net.connect(PORT, "127.0.0.1", () => {
+        client.destroy();
+        resolve();
+      });
+      client.on("error", () => {
+        client.destroy();
+        if (Date.now() > deadline) {
+          reject(new Error(`Server did not start within ${timeout / 1000}s`));
+          return;
+        }
+        setTimeout(attempt, 400);
+      });
+    };
+    attempt();
+  });
+}
+
+// ─── Window ───────────────────────────────────────────────────────────────────
+
+async function createWindow(): Promise<void> {
+  mainWindow = new BrowserWindow({
+    width: 1360,
+    height: 840,
+    minWidth: 960,
+    minHeight: 640,
+    title: "DJ Clip Studio",
+    backgroundColor: "#0f0f11",
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+    },
+  });
+
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith(`http://localhost:${PORT}`)) return { action: "allow" };
+    shell.openExternal(url);
+    return { action: "deny" };
+  });
+
+  mainWindow.once("ready-to-show", () => mainWindow?.show());
+  await mainWindow.loadURL(`http://localhost:${PORT}`);
+}
+
+// ─── Auto-updater ────────────────────────────────────────────────────────────
+
+function setupAutoUpdater(): void {
+  autoUpdater.setFeedURL({
+    provider: "github",
+    owner: "joddizgaren",
+    repo: "dj-clip-finder",
+    private: false,
+  });
+
+  autoUpdater.on("update-available", () => {
+    mainWindow?.webContents.send("update-available");
+  });
+  autoUpdater.on("update-downloaded", () => {
+    mainWindow?.webContents.send("update-downloaded");
+  });
+  autoUpdater.on("error", (err: Error) => {
+    console.warn("[updater]", err.message);
+  });
+
+  // Check silently 10s after launch — doesn't delay startup
+  setTimeout(
+    () => autoUpdater.checkForUpdatesAndNotify().catch(() => {}),
+    10_000
+  );
+}
+
+ipcMain.on("install-update", () => autoUpdater.quitAndInstall());
+
+// ─── App lifecycle ────────────────────────────────────────────────────────────
+
+app.whenReady().then(async () => {
+  startServer();
+
+  try {
+    await waitForServer();
+  } catch (err) {
+    dialog.showErrorBox("Startup failed", String(err));
+    app.quit();
+    return;
+  }
+
+  await createWindow();
+
+  if (app.isPackaged) setupAutoUpdater();
+});
+
+app.on("window-all-closed", () => {
+  serverProcess?.kill();
+  if (process.platform !== "darwin") app.quit();
+});
+
+app.on("before-quit", () => {
+  serverProcess?.kill();
+});
+
+app.on("activate", async () => {
+  if (BrowserWindow.getAllWindows().length === 0) await createWindow();
+});

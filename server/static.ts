@@ -3,7 +3,10 @@ import fs from "fs";
 import path from "path";
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(__dirname, "public");
+  // In Electron mode the main process sets ELECTRON_PUBLIC_PATH to the
+  // resources/public directory inside the packaged app.
+  const distPath = process.env.ELECTRON_PUBLIC_PATH || path.resolve(__dirname, "public");
+
   if (!fs.existsSync(distPath)) {
     throw new Error(
       `Could not find the build directory: ${distPath}, make sure to build the client first`,
