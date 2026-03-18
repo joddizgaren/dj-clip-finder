@@ -391,16 +391,13 @@ function ClipCard({
             <span className="text-xs text-muted-foreground">
               {formatTime(clip.startTime)} – {formatTime(clip.endTime)}
             </span>
-            <div className="flex flex-wrap gap-1 mt-0.5">
-              {clip.outputFormat && clip.outputFormat !== "original" && (
+            {clip.outputFormat && clip.outputFormat !== "original" && (
+              <div className="mt-0.5">
                 <Badge variant="outline" className="text-xs px-1.5 py-0 h-4">
                   {clip.outputFormat}
                 </Badge>
-              )}
-              <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 capitalize">
-                {clip.highlightType}
-              </Badge>
-            </div>
+              </div>
+            )}
           </div>
           <div
             className="flex items-center gap-1 text-xs text-muted-foreground shrink-0"
@@ -652,12 +649,16 @@ function ClipGroup({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(0);
 
   const checkScroll = () => {
     const el = scrollRef.current;
     if (!el) return;
     setCanScrollLeft(el.scrollLeft > 4);
     setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+    // Compute active dot based on scroll position
+    const itemW = el.scrollWidth / Math.max(clips.length, 1);
+    setActiveIdx(Math.round(el.scrollLeft / itemW));
   };
 
   useEffect(() => { checkScroll(); }, [clips.length]);
@@ -692,19 +693,23 @@ function ClipGroup({
 
       {/* Clips row */}
       <div className="relative">
+        {/* Left fade + arrow */}
         {canScrollLeft && (
-          <button
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-background border border-border shadow flex items-center justify-center -ml-3"
-            onClick={() => scroll("left")}
-            aria-label="Scroll left"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
+          <div className="absolute left-0 top-0 bottom-0 z-10 flex items-center pointer-events-none" style={{ width: 48 }}>
+            <div className="absolute inset-0 bg-gradient-to-r from-card to-transparent" />
+            <button
+              className="relative pointer-events-auto ml-1 w-8 h-8 rounded-full bg-card border border-border shadow-md flex items-center justify-center text-foreground hover:bg-muted transition-colors"
+              onClick={() => scroll("left")}
+              aria-label="Scroll left"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          </div>
         )}
+
         <div
           ref={scrollRef}
-          className="flex gap-3 overflow-x-auto pb-1"
-          style={{ scrollbarWidth: "thin" }}
+          className="flex gap-3 overflow-x-auto scrollbar-hide"
           onScroll={checkScroll}
         >
           {clips.map((clip, idx) => (
@@ -722,16 +727,41 @@ function ClipGroup({
             </div>
           ))}
         </div>
+
+        {/* Right fade + arrow */}
         {canScrollRight && (
-          <button
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-background border border-border shadow flex items-center justify-center -mr-3"
-            onClick={() => scroll("right")}
-            aria-label="Scroll right"
-          >
-            <ChevronRightIcon className="w-4 h-4" />
-          </button>
+          <div className="absolute right-0 top-0 bottom-0 z-10 flex items-center justify-end pointer-events-none" style={{ width: 48 }}>
+            <div className="absolute inset-0 bg-gradient-to-l from-card to-transparent" />
+            <button
+              className="relative pointer-events-auto mr-1 w-8 h-8 rounded-full bg-card border border-border shadow-md flex items-center justify-center text-foreground hover:bg-muted transition-colors"
+              onClick={() => scroll("right")}
+              aria-label="Scroll right"
+            >
+              <ChevronRightIcon className="w-4 h-4" />
+            </button>
+          </div>
         )}
       </div>
+
+      {/* Dot indicators */}
+      {!isSingle && (
+        <div className="flex justify-center gap-1.5 pt-1">
+          {clips.map((_, idx) => (
+            <button
+              key={idx}
+              onClick={() => scrollRef.current?.scrollTo({ left: idx * (scrollRef.current.scrollWidth / clips.length), behavior: "smooth" })}
+              className="rounded-full transition-all duration-200"
+              style={{
+                width: idx === activeIdx ? 14 : 5,
+                height: 5,
+                background: "currentColor",
+                opacity: idx === activeIdx ? 0.8 : 0.25,
+              }}
+              aria-label={`Go to clip ${idx + 1}`}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -1337,7 +1367,13 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
                   variant="outline"
                   size="sm"
                   className="gap-2 self-start text-sm"
-                  onClick={() => setShowSettings(true)}
+                  onClick={() => {
+                    setShowSettings(true);
+                    // Always scroll the settings panel into view, even if it was already open
+                    setTimeout(() => {
+                      settingsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    }, 50);
+                  }}
                   data-testid={`button-change-settings-${upload.id}`}
                 >
                   <Sliders className="w-4 h-4" />

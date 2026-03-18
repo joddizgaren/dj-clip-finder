@@ -380,12 +380,18 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         }
 
         // Delete existing clips (unless appending to them)
+        // In append mode, build a set of peak times already covered in the DB so
+        // we can skip them even when the new duration produces a different filename.
+        let existingPeakTimes = new Set<number>();
         if (!isAppend) {
           const existing = await storage.getClipsByUpload(found.id);
           for (const c of existing) {
             try { fs.unlinkSync(c.clipPath); } catch {}
           }
           await storage.deleteClipsByUpload(found.id);
+        } else {
+          const existing = await storage.getClipsByUpload(found.id);
+          for (const c of existing) existingPeakTimes.add(c.peakTime);
         }
 
         const refUpload = await storage.getUpload(found.id);
@@ -444,9 +450,10 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
             const clipFilename = buildClipFilename(found.filename, peak.time, dur);
             const clipPath = path.join(CLIPS_DIR, clipFilename);
 
-            // In append mode skip peaks whose clip file was already encoded
-            if (isAppend && fs.existsSync(clipPath)) {
-              console.log(`  [${dur}s] Skipped peak @${Math.floor(peak.time)}s (already exists)`);
+            // In append mode skip peaks already covered in the DB (works even when
+            // the duration / settings changed, which would produce a different filename)
+            if (isAppend && existingPeakTimes.has(Math.round(peak.time))) {
+              console.log(`  [${dur}s] Skipped peak @${Math.floor(peak.time)}s (already covered in DB)`);
               continue;
             }
 
