@@ -24,8 +24,9 @@ export const clips = pgTable("clips", {
     .notNull()
     .references(() => uploads.id, { onDelete: "cascade" }),
   startTime: integer("start_time").notNull(), // in seconds
-  endTime: integer("end_time").notNull(), // in seconds
-  duration: integer("duration").notNull(), // 15, 20, 30, or 45
+  endTime: integer("end_time").notNull(),     // in seconds
+  duration: integer("duration").notNull(),    // clip length in seconds
+  peakTime: integer("peak_time").default(0).notNull(), // peak moment time (seconds) — used to group variants
   clipPath: text("clip_path").notNull(),
   highlightType: text("highlight_type").notNull(),
   energyLevel: integer("energy_level").notNull(), // 0-100

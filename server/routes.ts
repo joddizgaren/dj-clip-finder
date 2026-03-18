@@ -21,8 +21,8 @@ const CLIPS_DIR = path.resolve("clips");
 
 if (!fs.existsSync(CLIPS_DIR)) fs.mkdirSync(CLIPS_DIR, { recursive: true });
 
-// Tracks abort signals for active generation jobs: uploadId → { aborted }
-const activeGenerations = new Map<string, { aborted: boolean }>();
+// Tracks state for active generation jobs: uploadId → { aborted, current, total }
+const activeGenerations = new Map<string, { aborted: boolean; current: number; total: number }>();
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -283,6 +283,12 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     }
   });
 
+  // Live progress for an active generation: { current, total }
+  app.get("/api/uploads/:uploadId/progress", (req, res) => {
+    const gen = activeGenerations.get(req.params.uploadId);
+    res.json(gen ? { current: gen.current, total: gen.total } : { current: 0, total: 0 });
+  });
+
   app.get("/api/uploads/:uploadId/clips", async (req, res) => {
     const found = await storage.getUpload(req.params.uploadId);
     if (!found) return res.status(404).json({ message: "Upload not found" });
@@ -330,7 +336,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ message: "Clip generation started", uploadId: found.id });
     await storage.updateUpload(found.id, { status: "generating" });
 
-    const abortSignal = { aborted: false };
+    const abortSignal = { aborted: false, current: 0, total: 0 };
     activeGenerations.set(found.id, abortSignal);
 
     (async () => {
@@ -397,6 +403,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         // Per-duration clip limit — for append, use moreCount; otherwise maxClipsLimit
         const perDurLimit = isAppend ? appendLimit : maxClipsLimit;
 
+        // Progress tracking: estimate total (may be slightly less if peaks near end are skipped)
+        const estimatedTotal = (durations as number[]).length * (perDurLimit > 0 ? perDurLimit : normalizedPeaks.length);
+        activeGenerations.get(found.id)!.total   = estimatedTotal;
+        activeGenerations.get(found.id)!.current = 0;
+
         let count = 0;
 
         console.log(`Starting generation: ${durations.join(",")}s clips, limit=${perDurLimit > 0 ? perDurLimit : "all"}, peaks=${normalizedPeaks.length}, append=${isAppend}, skipFirstN=${peakSkipCount}`);
@@ -452,6 +463,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
               startTime: times.startTime,
               endTime: times.endTime,
               duration: dur,
+              peakTime: Math.round(peak.time),
               clipPath,
               highlightType: peak.type,
               energyLevel: peak.energyLevel,
@@ -460,6 +472,8 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
             durCount++;
             count++;
+            const gen = activeGenerations.get(found.id);
+            if (gen) gen.current = count;
             console.log(`  [${dur}s] ✓ Clip ${count} saved (${durCount}/${perDurLimit > 0 ? perDurLimit : "∞"} for this duration)`);
           }
           if (abortSignal.aborted) break;
@@ -478,6 +492,76 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
         });
       }
     })();
+  });
+
+  // Re-cut a clip variant: same peak, different duration/buildUp/outputFormat
+  app.post("/api/clips/:clipId/variant", async (req, res) => {
+    const clip = await storage.getClip(req.params.clipId);
+    if (!clip) return res.status(404).json({ message: "Clip not found" });
+
+    const upload = await storage.getUpload(clip.uploadId);
+    if (!upload) return res.status(404).json({ message: "Upload not found" });
+
+    if (!upload.filePath || !fs.existsSync(upload.filePath)) {
+      return res.status(400).json({ message: "Original video file not found" });
+    }
+
+    const { duration, buildUp, outputFormat, cropMethod } = req.body;
+
+    const dur: number = typeof duration === "number" && duration >= 3 && duration <= 3600
+      ? Math.round(duration) : clip.duration;
+
+    const validBuildUps: BuildUp[] = ["none", "short", "medium", "long", "auto"];
+    const resolvedBuildUp: BuildUp = validBuildUps.includes(buildUp) ? buildUp : "short";
+    const resolvedOutputFormat: OutputFormat = ["original", "9:16", "3:4", "4:5", "1:1", "16:9"].includes(outputFormat)
+      ? outputFormat : "original";
+    const resolvedCropMethod: CropMethod = cropMethod === "crop" ? "crop" : "blur";
+
+    const srcWidth  = upload.videoWidth  ?? 1920;
+    const srcHeight = upload.videoHeight ?? 1080;
+
+    const peak = {
+      time: clip.peakTime,
+      energyLevel: clip.energyLevel,
+      type: clip.highlightType as "drop" | "transition" | "build",
+    };
+
+    const times = computeClipTimes(peak, dur, upload.duration, resolvedBuildUp);
+    if (!times) return res.status(400).json({ message: "Clip would extend beyond the video duration" });
+
+    // Build a unique filename using a short timestamp to avoid collisions
+    const ts = Date.now().toString(36).slice(-5);
+    const base = buildClipFilename(upload.filename, clip.peakTime, dur).replace(".mp4", "");
+    const fmtTag = resolvedOutputFormat !== "original" ? `_${resolvedOutputFormat.replace(":", "x")}` : "";
+    const clipFilename = `${base}${fmtTag}_${ts}.mp4`;
+    const clipPath = path.join(CLIPS_DIR, clipFilename);
+
+    try {
+      await extractClip(upload.filePath, clipPath, times.startTime, times.endTime - times.startTime, {
+        srcWidth,
+        srcHeight,
+        outputFormat: resolvedOutputFormat,
+        cropMethod: resolvedCropMethod,
+      });
+
+      const newClip = await storage.createClip({
+        uploadId: upload.id,
+        startTime: times.startTime,
+        endTime: times.endTime,
+        duration: dur,
+        peakTime: clip.peakTime,
+        clipPath,
+        highlightType: clip.highlightType,
+        energyLevel: clip.energyLevel,
+        outputFormat: resolvedOutputFormat,
+      });
+
+      console.log(`Variant created: ${clipFilename} (peak@${clip.peakTime}s, ${dur}s, ${resolvedOutputFormat})`);
+      res.json(newClip);
+    } catch (err) {
+      console.error("Variant generation failed:", err);
+      res.status(500).json({ message: "Variant generation failed: " + String(err) });
+    }
   });
 
   // Serve clip file for download/preview

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { Button } from "@/components/ui/button";
@@ -45,14 +45,17 @@ import {
   Sliders,
   AlertTriangle,
   PlusCircle,
+  RefreshCcw,
+  ChevronLeft,
+  ChevronRight as ChevronRightIcon,
 } from "lucide-react";
 
 // ─────────────────────────────────────────────
 // Constants
 // ─────────────────────────────────────────────
 
-const CLIP_DURATIONS = [15, 20, 30, 45] as const;
-type ClipDuration = typeof CLIP_DURATIONS[number];
+const PRESET_DURATIONS = [15, 20, 30, 45] as const;
+type ClipDuration = number; // any positive integer
 
 type Sensitivity    = "conservative" | "balanced" | "aggressive";
 type RecordingType  = "cable" | "mic" | "auto";
@@ -325,39 +328,92 @@ function StatusBadge({ status }: { status: string }) {
 // ClipCard
 // ─────────────────────────────────────────────
 
-function ClipCard({ clip, onDelete, index }: { clip: Clip; onDelete: (id: string) => void; index: number }) {
+function ClipCard({
+  clip,
+  onDelete,
+  label,
+  upload,
+}: {
+  clip: Clip;
+  onDelete: (id: string) => void;
+  label: string;
+  upload: Upload;
+}) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   const [expanded, setExpanded] = useState(false);
+  const [recutOpen, setRecutOpen] = useState(false);
+
+  // Re-cut settings (default to the clip's own settings)
+  const [recutDur, setRecutDur] = useState<number>(clip.duration);
+  const [recutCustomStr, setRecutCustomStr] = useState("");
+  const [showRecutCustom, setShowRecutCustom] = useState(false);
+  const [recutBuildUp, setRecutBuildUp] = useState<BuildUp>("short");
+  const [recutFormat, setRecutFormat] = useState<OutputFormat>(
+    (clip.outputFormat as OutputFormat) ?? "original"
+  );
+  const [recutCrop, setRecutCrop] = useState<CropMethod>("blur");
+
+  const recutCustomNum = parseInt(recutCustomStr, 10);
+  const recutCustomValid = showRecutCustom && !isNaN(recutCustomNum) && recutCustomNum >= 3 && recutCustomNum <= 3600;
+  const finalRecutDur = recutCustomValid ? recutCustomNum : recutDur;
+
+  const sourceFormat = upload.videoWidth && upload.videoHeight
+    ? detectFormat(upload.videoWidth, upload.videoHeight)
+    : null;
+  const recutNeedsConversion = recutFormat !== "original" && recutFormat !== sourceFormat;
+
+  const variantMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", `/api/clips/${clip.id}/variant`, {
+        duration: finalRecutDur,
+        buildUp: recutBuildUp,
+        outputFormat: recutFormat,
+        cropMethod: recutCrop,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/uploads", clip.uploadId, "clips"] });
+      setRecutOpen(false);
+      toast({ title: "Variant created!", description: `New ${finalRecutDur}s clip generated from the same moment.` });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Re-cut failed", description: err.message, variant: "destructive" });
+    },
+  });
 
   return (
-    <Card className="hover-elevate" data-testid={`card-clip-${clip.id}`}>
-      <CardContent className="p-4 flex flex-col gap-3">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-sm font-medium text-foreground">
-              Clip #{index + 1}: {clip.duration}s clip
-            </span>
+    <Card className="hover-elevate flex flex-col" data-testid={`card-clip-${clip.id}`}>
+      <CardContent className="p-4 flex flex-col gap-3 flex-1">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex flex-col gap-1">
+            <span className="text-sm font-semibold text-foreground">{label}</span>
             <span className="text-xs text-muted-foreground">
               {formatTime(clip.startTime)} – {formatTime(clip.endTime)}
             </span>
-            {clip.outputFormat && clip.outputFormat !== "original" && (
-              <Badge variant="outline" className="text-xs px-1.5 py-0 h-4">
-                {clip.outputFormat}
+            <div className="flex flex-wrap gap-1 mt-0.5">
+              {clip.outputFormat && clip.outputFormat !== "original" && (
+                <Badge variant="outline" className="text-xs px-1.5 py-0 h-4">
+                  {clip.outputFormat}
+                </Badge>
+              )}
+              <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 capitalize">
+                {clip.highlightType}
               </Badge>
-            )}
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            <div
-              className="flex items-center gap-1 text-xs text-muted-foreground"
-              data-testid={`text-energy-${clip.id}`}
-            >
-              <Zap className="w-3 h-3 text-chart-4" />
-              {clip.energyLevel}%
             </div>
+          </div>
+          <div
+            className="flex items-center gap-1 text-xs text-muted-foreground shrink-0"
+            data-testid={`text-energy-${clip.id}`}
+          >
+            <Zap className="w-3 h-3 text-chart-4" />
+            {clip.energyLevel}%
           </div>
         </div>
 
         <Progress value={clip.energyLevel} className="h-1" />
 
+        {/* Preview toggle */}
         <Button
           variant="ghost"
           size="sm"
@@ -383,11 +439,12 @@ function ClipCard({ clip, onDelete, index }: { clip: Clip; onDelete: (id: string
           </div>
         )}
 
-        <div className="flex gap-2">
+        {/* Actions */}
+        <div className="flex gap-1.5 mt-auto">
           <Button
             size="sm"
             variant="outline"
-            className="flex-1 gap-2"
+            className="flex-1 gap-1.5 text-xs"
             asChild
             data-testid={`button-download-${clip.id}`}
           >
@@ -397,9 +454,19 @@ function ClipCard({ clip, onDelete, index }: { clip: Clip; onDelete: (id: string
             </a>
           </Button>
           <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs px-2.5"
+            onClick={() => setRecutOpen(true)}
+            data-testid={`button-recut-${clip.id}`}
+          >
+            <RefreshCcw className="w-3 h-3" />
+            Re-cut
+          </Button>
+          <Button
             size="icon"
             variant="outline"
-            className="shrink-0 text-destructive"
+            className="shrink-0 text-destructive h-8 w-8"
             onClick={() => onDelete(clip.id)}
             data-testid={`button-delete-clip-${clip.id}`}
           >
@@ -407,7 +474,265 @@ function ClipCard({ clip, onDelete, index }: { clip: Clip; onDelete: (id: string
           </Button>
         </div>
       </CardContent>
+
+      {/* Re-cut Dialog */}
+      <Dialog open={recutOpen} onOpenChange={setRecutOpen}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <RefreshCcw className="w-4 h-4 text-primary" />
+              Re-cut this moment
+            </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground">
+              Same peak at {formatTime(clip.peakTime ?? clip.startTime)}, new settings.
+              The new clip will appear alongside this one.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="flex flex-col gap-4 py-1">
+            {/* Duration */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Duration</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {PRESET_DURATIONS.map(d => (
+                  <Button
+                    key={d}
+                    size="sm"
+                    variant={!showRecutCustom && recutDur === d ? "default" : "outline"}
+                    className="text-xs h-7 px-2.5"
+                    onClick={() => { setRecutDur(d); setShowRecutCustom(false); }}
+                    data-testid={`button-recut-dur-${d}-${clip.id}`}
+                  >
+                    {d}s
+                  </Button>
+                ))}
+                <Button
+                  size="sm"
+                  variant={showRecutCustom ? "default" : "outline"}
+                  className="text-xs h-7 px-2.5"
+                  onClick={() => setShowRecutCustom(v => !v)}
+                  data-testid={`button-recut-custom-${clip.id}`}
+                >
+                  Custom
+                </Button>
+              </div>
+              {showRecutCustom && (
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="number"
+                    min={3}
+                    max={3600}
+                    placeholder="e.g. 60"
+                    value={recutCustomStr}
+                    onChange={e => setRecutCustomStr(e.target.value)}
+                    className="w-24 h-7 rounded-md border border-input bg-background px-2 text-sm"
+                    data-testid={`input-recut-custom-${clip.id}`}
+                  />
+                  <span className="text-xs text-muted-foreground">seconds</span>
+                </div>
+              )}
+            </div>
+
+            {/* Build-up */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Build-up before the drop</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {([
+                  { value: "none",   label: "None" },
+                  { value: "short",  label: "Short" },
+                  { value: "medium", label: "Medium" },
+                  { value: "long",   label: "Long" },
+                  { value: "auto",   label: "DJ Choice" },
+                ] as const).map(opt => (
+                  <Button
+                    key={opt.value}
+                    size="sm"
+                    variant={recutBuildUp === opt.value ? "default" : "outline"}
+                    className="text-xs h-7 px-2.5"
+                    onClick={() => setRecutBuildUp(opt.value)}
+                    data-testid={`button-recut-buildup-${opt.value}-${clip.id}`}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Output format */}
+            <div>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Output format</p>
+              <div className="flex gap-1.5 flex-wrap">
+                {([
+                  { value: "original", label: "No change" },
+                  { value: "9:16",     label: "9:16" },
+                  { value: "4:5",      label: "4:5" },
+                  { value: "1:1",      label: "1:1" },
+                  { value: "3:4",      label: "3:4" },
+                  { value: "16:9",     label: "16:9" },
+                ] as const).map(opt => (
+                  <Button
+                    key={opt.value}
+                    size="sm"
+                    variant={recutFormat === opt.value ? "default" : "outline"}
+                    className="text-xs h-7 px-2.5"
+                    onClick={() => setRecutFormat(opt.value)}
+                    data-testid={`button-recut-format-${opt.value}-${clip.id}`}
+                  >
+                    {opt.label}
+                  </Button>
+                ))}
+              </div>
+
+              {recutNeedsConversion && (
+                <div className="flex gap-1.5 mt-2">
+                  <Button
+                    size="sm"
+                    variant={recutCrop === "blur" ? "default" : "outline"}
+                    className="text-xs h-7 px-2.5"
+                    onClick={() => setRecutCrop("blur")}
+                  >
+                    Blur background
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={recutCrop === "crop" ? "default" : "outline"}
+                    className="text-xs h-7 px-2.5"
+                    onClick={() => setRecutCrop("crop")}
+                  >
+                    Center crop
+                  </Button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <DialogFooter className="flex flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => setRecutOpen(false)}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              className="flex-1 gap-2"
+              disabled={variantMutation.isPending || (showRecutCustom && !recutCustomValid)}
+              onClick={() => variantMutation.mutate()}
+              data-testid={`button-recut-submit-${clip.id}`}
+            >
+              {variantMutation.isPending ? (
+                <Loader2 className="w-3 h-3 animate-spin" />
+              ) : (
+                <Scissors className="w-3 h-3" />
+              )}
+              Generate variant
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
+  );
+}
+
+// ─────────────────────────────────────────────
+// ClipGroup — horizontal row of clips from the same peak moment
+// ─────────────────────────────────────────────
+
+function ClipGroup({
+  groupIndex,
+  clips,
+  upload,
+  onDeleteClip,
+}: {
+  groupIndex: number;
+  clips: Clip[];
+  upload: Upload;
+  onDeleteClip: (id: string) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [canScrollLeft, setCanScrollLeft] = useState(false);
+  const [canScrollRight, setCanScrollRight] = useState(false);
+
+  const checkScroll = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setCanScrollLeft(el.scrollLeft > 4);
+    setCanScrollRight(el.scrollLeft < el.scrollWidth - el.clientWidth - 4);
+  };
+
+  useEffect(() => { checkScroll(); }, [clips.length]);
+
+  const scroll = (dir: "left" | "right") => {
+    scrollRef.current?.scrollBy({ left: dir === "left" ? -300 : 300, behavior: "smooth" });
+  };
+
+  const topClip = clips[0];
+  const isSingle = clips.length === 1;
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* Group header */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-semibold text-foreground">
+          Moment #{groupIndex + 1}
+        </span>
+        <span className="text-xs text-muted-foreground">
+          @ {formatTime(topClip.peakTime ?? topClip.startTime)}
+        </span>
+        <div className="flex items-center gap-1 text-xs text-muted-foreground">
+          <Zap className="w-3 h-3 text-chart-4" />
+          {topClip.energyLevel}%
+        </div>
+        {clips.length > 1 && (
+          <Badge variant="outline" className="text-xs px-1.5 py-0 h-4 ml-auto">
+            {clips.length} variants
+          </Badge>
+        )}
+      </div>
+
+      {/* Clips row */}
+      <div className="relative">
+        {canScrollLeft && (
+          <button
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-background border border-border shadow flex items-center justify-center -ml-3"
+            onClick={() => scroll("left")}
+            aria-label="Scroll left"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        )}
+        <div
+          ref={scrollRef}
+          className="flex gap-3 overflow-x-auto pb-1"
+          style={{ scrollbarWidth: "thin" }}
+          onScroll={checkScroll}
+        >
+          {clips.map((clip, idx) => (
+            <div
+              key={clip.id}
+              className="flex-none"
+              style={{ width: isSingle ? "100%" : "min(280px, 80vw)" }}
+            >
+              <ClipCard
+                clip={clip}
+                label={idx === 0 ? `${clip.duration}s clip` : `Variant: ${clip.duration}s${clip.outputFormat && clip.outputFormat !== "original" ? ` · ${clip.outputFormat}` : ""}`}
+                onDelete={onDeleteClip}
+                upload={upload}
+              />
+            </div>
+          ))}
+        </div>
+        {canScrollRight && (
+          <button
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-7 h-7 rounded-full bg-background border border-border shadow flex items-center justify-center -mr-3"
+            onClick={() => scroll("right")}
+            aria-label="Scroll right"
+          >
+            <ChevronRightIcon className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -420,6 +745,8 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
   const { toast } = useToast();
 
   const [selectedDurations, setSelectedDurations] = useState<ClipDuration[]>([15]);
+  const [customDurStr, setCustomDurStr]   = useState<string>("");
+  const [showCustomDur, setShowCustomDur] = useState(false);
   const [maxClips, setMaxClips]         = useState<string>("");
   const [buildUp, setBuildUp]           = useState<BuildUp>("short");
   const [sensitivity, setSensitivity]   = useState<Sensitivity>("balanced");
@@ -493,6 +820,38 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
 
   const maxClipsNumber = maxClips.trim() === "" ? 0 : parseInt(maxClips, 10);
 
+  // Custom duration
+  const customDurNum = parseInt(customDurStr, 10);
+  const customDurValid = showCustomDur && !isNaN(customDurNum) && customDurNum >= 3 && customDurNum <= 3600;
+  // All active durations: presets + optional custom
+  const allDurations: number[] = [
+    ...selectedDurations.filter(d => (PRESET_DURATIONS as readonly number[]).includes(d)),
+    ...(customDurValid ? [customDurNum] : []),
+  ];
+
+  // Poll generation progress for "Encoding clip X of Y"
+  const { data: genProgress } = useQuery<{ current: number; total: number }>({
+    queryKey: ["/api/uploads", upload.id, "progress"],
+    queryFn: () => fetch(`/api/uploads/${upload.id}/progress`).then(r => r.json()),
+    refetchInterval: isGenerating ? 2000 : false,
+    enabled: isGenerating,
+  });
+
+  // Group clips by peakTime so variants appear side-by-side
+  const clipGroups = useMemo(() => {
+    const map = new Map<number, Clip[]>();
+    for (const clip of clips) {
+      const pt = clip.peakTime ?? 0;
+      if (!map.has(pt)) map.set(pt, []);
+      map.get(pt)!.push(clip);
+    }
+    return Array.from(map.entries()).sort((a: [number, Clip[]], b: [number, Clip[]]) => {
+      const eA = Math.max(...a[1].map((c: Clip) => c.energyLevel));
+      const eB = Math.max(...b[1].map((c: Clip) => c.energyLevel));
+      return eB - eA;
+    });
+  }, [clips]);
+
   const sourceFormat = (upload.videoWidth && upload.videoHeight)
     ? detectFormat(upload.videoWidth, upload.videoHeight)
     : null;
@@ -515,7 +874,7 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
   const generateMutation = useMutation({
     mutationFn: (opts?: { append?: boolean; skipFirstN?: number }) => {
       const settings: GenerateSettings = {
-        durations: selectedDurations,
+        durations: allDurations,
         maxClips: maxClipsNumber,
         buildUp,
         sensitivity,
@@ -587,7 +946,7 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
     },
   });
 
-  const toggleDuration = (d: ClipDuration) => {
+  const togglePresetDuration = (d: number) => {
     setSelectedDurations(prev =>
       prev.includes(d) ? prev.filter(x => x !== d) : [...prev, d]
     );
@@ -647,18 +1006,47 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
             {/* Clip durations */}
             <div>
               <p className="text-xs font-medium text-muted-foreground mb-2">Clip durations</p>
-              <div className="flex gap-2 flex-wrap">
-                {CLIP_DURATIONS.map(d => (
+              <div className="flex gap-2 flex-wrap items-center">
+                {PRESET_DURATIONS.map(d => (
                   <Button
                     key={d}
                     variant={selectedDurations.includes(d) ? "default" : "outline"}
                     size="sm"
-                    onClick={() => toggleDuration(d)}
+                    onClick={() => togglePresetDuration(d)}
                     data-testid={`button-duration-${d}-${upload.id}`}
                   >
                     {d}s
                   </Button>
                 ))}
+                <Button
+                  variant={showCustomDur ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => {
+                    setShowCustomDur(v => !v);
+                    if (showCustomDur) setCustomDurStr("");
+                  }}
+                  data-testid={`button-duration-custom-${upload.id}`}
+                >
+                  Custom
+                </Button>
+                {showCustomDur && (
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="number"
+                      min={3}
+                      max={3600}
+                      placeholder="e.g. 60"
+                      value={customDurStr}
+                      onChange={e => setCustomDurStr(e.target.value)}
+                      className="w-20 h-8 rounded-md border border-input bg-background px-2 text-sm"
+                      data-testid={`input-custom-duration-${upload.id}`}
+                    />
+                    <span className="text-xs text-muted-foreground">s</span>
+                    {customDurValid && (
+                      <span className="text-xs text-green-600 font-medium">✓ {customDurNum}s</span>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -860,12 +1248,12 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
 
             <Button
               className="gap-2"
-              disabled={selectedDurations.length === 0 || generateMutation.isPending}
+              disabled={allDurations.length === 0 || generateMutation.isPending}
               onClick={() => {
                 if (clips.length > 0) {
                   setShowRegenWarning(true);
                 } else {
-                  generateMutation.mutate();
+                  generateMutation.mutate({});
                 }
               }}
               data-testid={`button-generate-${upload.id}`}
@@ -876,47 +1264,9 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
                 <Scissors className="w-4 h-4" />
               )}
               {maxClipsNumber > 0
-                ? `Generate top ${maxClipsNumber} × ${selectedDurations.join(", ")}s`
-                : `Generate all × ${selectedDurations.join(", ")}s`}
+                ? `Generate top ${maxClipsNumber} × ${allDurations.join(", ")}s`
+                : `Generate all × ${allDurations.join(", ")}s`}
             </Button>
-          </div>
-        )}
-
-        {/* Generating progress + stop button */}
-        {isGenerating && (
-          <div className="flex flex-col gap-2">
-            {lastSettings && (
-              <div className="text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2 flex flex-wrap gap-x-4 gap-y-1">
-                <span><span className="font-medium text-foreground/70">Duration:</span> {lastSettings.durations.join(", ")}s</span>
-                <span><span className="font-medium text-foreground/70">Max clips:</span> {lastSettings.maxClips > 0 ? lastSettings.maxClips : "all"}</span>
-                <span><span className="font-medium text-foreground/70">Build-up:</span> {lastSettings.buildUp === "auto" ? "DJ Choice" : lastSettings.buildUp}</span>
-                {lastSettings.outputFormat !== "original" && (
-                  <span><span className="font-medium text-foreground/70">Format:</span> {lastSettings.outputFormat}</span>
-                )}
-                <span><span className="font-medium text-foreground/70">Sensitivity:</span> {lastSettings.sensitivity}</span>
-              </div>
-            )}
-            <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-1">
-                <Loader2 className="w-3 h-3 animate-spin shrink-0" />
-                <span>
-                  {clips.length > 0
-                    ? `${clips.length} clip${clips.length > 1 ? "s" : ""} ready so far — still encoding…`
-                    : "Analysing audio and encoding clips…"}
-                </span>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="gap-1.5 text-xs h-7 shrink-0 text-destructive border-destructive/40 hover:bg-destructive/10"
-                onClick={() => stopMutation.mutate()}
-                disabled={stopMutation.isPending}
-                data-testid={`button-stop-${upload.id}`}
-              >
-                <Square className="w-3 h-3" />
-                Stop
-              </Button>
-            </div>
           </div>
         )}
 
@@ -936,13 +1286,14 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
               {showClips ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </Button>
             {showClips && (
-              <div className="grid grid-cols-1 gap-3">
-                {clips.map((clip, idx) => (
-                  <ClipCard
-                    key={clip.id}
-                    clip={clip}
-                    index={idx}
-                    onDelete={(id) => deleteClipMutation.mutate(id)}
+              <div className="flex flex-col gap-5">
+                {clipGroups.map(([peakTime, groupClips], groupIdx) => (
+                  <ClipGroup
+                    key={peakTime}
+                    groupIndex={groupIdx}
+                    clips={groupClips}
+                    upload={upload}
+                    onDeleteClip={(id) => deleteClipMutation.mutate(id)}
                   />
                 ))}
               </div>
@@ -997,6 +1348,46 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
           </div>
         )}
 
+        {/* Progress block — rendered BELOW clips */}
+        {isGenerating && (
+          <div className="flex flex-col gap-2">
+            {lastSettings && (
+              <div className="text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2 flex flex-wrap gap-x-4 gap-y-1">
+                <span><span className="font-medium text-foreground/70">Duration:</span> {lastSettings.durations.join(", ")}s</span>
+                <span><span className="font-medium text-foreground/70">Max clips:</span> {lastSettings.maxClips > 0 ? lastSettings.maxClips : "all"}</span>
+                <span><span className="font-medium text-foreground/70">Build-up:</span> {lastSettings.buildUp === "auto" ? "DJ Choice" : lastSettings.buildUp}</span>
+                {lastSettings.outputFormat !== "original" && (
+                  <span><span className="font-medium text-foreground/70">Format:</span> {lastSettings.outputFormat}</span>
+                )}
+                <span><span className="font-medium text-foreground/70">Sensitivity:</span> {lastSettings.sensitivity}</span>
+              </div>
+            )}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-1" data-testid={`text-progress-${upload.id}`}>
+                <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                <span>
+                  {genProgress && genProgress.total > 0
+                    ? `Encoding clip ${genProgress.current} of ${genProgress.total}…`
+                    : clips.length > 0
+                      ? `${clips.length} clip${clips.length > 1 ? "s" : ""} ready so far — still encoding…`
+                      : "Analysing audio and encoding clips…"}
+                </span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs h-7 shrink-0 text-destructive border-destructive/40 hover:bg-destructive/10"
+                onClick={() => stopMutation.mutate()}
+                disabled={stopMutation.isPending}
+                data-testid={`button-stop-${upload.id}`}
+              >
+                <Square className="w-3 h-3" />
+                Stop
+              </Button>
+            </div>
+          </div>
+        )}
+
         {/* Warning: regenerating when clips already exist */}
         <Dialog open={showRegenWarning} onOpenChange={setShowRegenWarning}>
           <DialogContent className="max-w-sm">
@@ -1018,14 +1409,12 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
                 onClick={() => {
                   setShowRegenWarning(false);
                   const current: GenerateSettings = {
-                    durations: selectedDurations, maxClips: maxClipsNumber,
+                    durations: allDurations, maxClips: maxClipsNumber,
                     buildUp, sensitivity, recordingType, outputFormat, cropMethod,
                   };
                   if (settingsAreSame(lastSettings, current)) {
-                    // Same settings → skip already-encoded files (classic append)
                     appendMutation.mutate();
                   } else {
-                    // New settings → generate from peak #1, add on top of existing
                     generateMutation.mutate({ append: true });
                   }
                 }}
@@ -1040,17 +1429,15 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
                 onClick={() => {
                   setShowRegenWarning(false);
                   const current: GenerateSettings = {
-                    durations: selectedDurations, maxClips: maxClipsNumber,
+                    durations: allDurations, maxClips: maxClipsNumber,
                     buildUp, sensitivity, recordingType, outputFormat, cropMethod,
                   };
                   if (settingsAreSame(lastSettings, current)) {
-                    // Same settings → delete existing, but continue from peak N+1
-                    const clipsPerDur = selectedDurations.length > 0
-                      ? Math.floor(clips.length / selectedDurations.length)
+                    const clipsPerDur = allDurations.length > 0
+                      ? Math.floor(clips.length / allDurations.length)
                       : clips.length;
                     generateMutation.mutate({ append: false, skipFirstN: clipsPerDur });
                   } else {
-                    // New settings → delete all, start fresh from peak #1
                     generateMutation.mutate({ append: false });
                   }
                 }}
