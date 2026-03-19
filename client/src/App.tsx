@@ -37,7 +37,8 @@ function AppShell({ onSignOut }: AppShellProps) {
 
   useEffect(() => {
     if (!isElectron()) return;
-    window.electronAPI!.onUpdateDownloaded(() => setUpdateReady(true));
+    const unsubscribe = window.electronAPI!.onUpdateDownloaded(() => setUpdateReady(true));
+    return unsubscribe;
   }, []);
 
   const showBanner = updateReady && !bannerDismissed;
@@ -161,7 +162,7 @@ function AuthGate() {
           <div>
             <h1 className="text-lg font-semibold text-foreground">Account disabled</h1>
             <p className="mt-1 text-sm text-muted-foreground">
-              This account has been disabled. Contact support.
+              Account disabled. Contact support.
             </p>
           </div>
         </div>

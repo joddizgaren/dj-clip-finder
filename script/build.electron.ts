@@ -70,6 +70,13 @@ async function buildAll() {
   // Bake Supabase credentials into the bundle so the installer works on any
   // machine without the user needing to set env vars.
   // These are publishable/anon keys — safe to embed in client-side code.
+  if (!process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY) {
+    console.warn(
+      "⚠  VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY not found in environment.\n" +
+      "   Falling back to baked-in publishable keys.\n" +
+      "   For production builds, set these env vars before running the build script.\n"
+    );
+  }
   const supabaseUrl =
     process.env.VITE_SUPABASE_URL ||
     "https://fodnipoqwervrgodouim.supabase.co";

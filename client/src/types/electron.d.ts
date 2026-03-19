@@ -1,6 +1,6 @@
 interface ElectronAPI {
-  onUpdateAvailable: (cb: () => void) => void;
-  onUpdateDownloaded: (cb: () => void) => void;
+  onUpdateAvailable: (cb: () => void) => () => void;
+  onUpdateDownloaded: (cb: () => void) => () => void;
   installUpdate: () => void;
 }
 
