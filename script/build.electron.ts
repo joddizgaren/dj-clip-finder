@@ -26,15 +26,6 @@ import path from "path";
 // node:sqlite is a built-in Node.js module and needs no entry here.
 const ALWAYS_EXTERNAL = ["electron"];
 
-async function getAllPackageNames(): Promise<string[]> {
-  const pkg = JSON.parse(await readFile("package.json", "utf-8"));
-  const all = [
-    ...Object.keys(pkg.dependencies || {}),
-    ...Object.keys(pkg.devDependencies || {}),
-  ];
-  return all;
-}
-
 async function buildAll() {
   console.log("═══════════════════════════════════════");
   console.log("  DJ Clip Studio — Electron Build");
@@ -102,19 +93,32 @@ async function buildAll() {
   console.log("✔  Frontend → dist/electron/public/\n");
 
   // ── 3. Bundle the Express server ─────────────────────────────────────────
-  console.log("▶  Bundling server…");
-  const allPkgs = await getAllPackageNames();
-  // Keep all dependencies external — electron-builder will include node_modules.
-  // node:sqlite is a built-in and needs no entry in externals.
-  const serverExternals = [...new Set([...ALWAYS_EXTERNAL, ...allPkgs])];
-
+  // Bundle ALL npm packages directly into server.cjs so it is fully
+  // self-contained when running from the installer's resources/ folder
+  // (where node_modules is not present).
+  //
+  // Only keep these external:
+  //   • "electron"         – never imported by the server anyway
+  //   • Node.js built-ins  – auto-external with platform:"node" (includes node:sqlite)
+  //   • Optional native ws/pg addons – have pure-JS fallbacks; skip silently
+  console.log("▶  Bundling server (self-contained)…");
   await esbuild({
     entryPoints: ["server/index.ts"],
     platform: "node",
     bundle: true,
     format: "cjs",
     outfile: "dist/electron/server.cjs",
-    external: serverExternals,
+    external: [
+      "electron",
+      // Optional native packages — ws/pg fall back to pure JS without them
+      "bufferutil",
+      "utf-8-validate",
+      "pg-native",
+    ],
+    // Resolve @shared/* → ./shared/* (mirrors the tsconfig paths alias)
+    alias: {
+      "@shared": path.resolve("shared"),
+    },
     define: { "process.env.NODE_ENV": '"production"' },
     minify: false,
     logLevel: "info",
