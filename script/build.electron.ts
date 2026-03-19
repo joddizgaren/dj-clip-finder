@@ -18,7 +18,7 @@
 
 import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
-import { rm, mkdir, copyFile, readFile } from "fs/promises";
+import { rm, mkdir, copyFile, readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
 import path from "path";
 
@@ -137,8 +137,24 @@ async function buildAll() {
   console.log("✔  Preload → dist/electron/preload.js\n");
 
   // ── 6. Run electron-builder ───────────────────────────────────────────────
+  // electron-builder requires "electron" and "electron-builder" to be in
+  // devDependencies. In Replit they live in dependencies. Temporarily swap them,
+  // run the build, then restore the original file regardless of outcome.
+  const pkgRaw = await readFile("package.json", "utf-8");
+  const pkgObj = JSON.parse(pkgRaw);
+  const DEV_ONLY = ["electron", "electron-builder"];
+  for (const name of DEV_ONLY) {
+    if (pkgObj.dependencies?.[name]) {
+      pkgObj.devDependencies ??= {};
+      pkgObj.devDependencies[name] = pkgObj.dependencies[name];
+      delete pkgObj.dependencies[name];
+    }
+  }
+  await writeFile("package.json", JSON.stringify(pkgObj, null, 2) + "\n");
+
   console.log("▶  Packaging installer (electron-builder)…");
   const { build: electronBuild } = await import("electron-builder");
+  try {
   await electronBuild({
     config: {
       appId: "com.joddizgaren.djclipstudio",
@@ -182,6 +198,10 @@ async function buildAll() {
       },
     },
   });
+  } finally {
+    // Always restore the original package.json
+    await writeFile("package.json", pkgRaw);
+  }
 
   console.log("\n✅ Done! Check the release/ folder for the installer .exe");
   console.log(

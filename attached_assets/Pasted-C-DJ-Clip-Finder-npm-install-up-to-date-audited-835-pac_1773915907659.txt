@@ -1,0 +1,64 @@
+C:\DJ-Clip-Finder>npm install
+
+up to date, audited 835 packages in 2s
+
+122 packages are looking for funding
+  run `npm fund` for details
+
+4 vulnerabilities (1 low, 1 moderate, 2 high)
+
+To address all issues, run:
+  npm audit fix
+
+Run `npm audit` for details.
+
+C:\DJ-Clip-Finder>npx tsx script/build.electron.ts
+═══════════════════════════════════════
+  DJ Clip Studio — Electron Build
+═══════════════════════════════════════
+
+✔  Cleaned dist/electron/
+⚠  VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY not found in environment.
+   Falling back to baked-in publishable keys.
+   For production builds, set these env vars before running the build script.
+
+▶  Building frontend (Vite)…
+vite v7.3.0 building client environment for production...
+transforming (1) src\main.tsx
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+✓ 1750 modules transformed.
+dist/electron/public/index.html                   2.01 kB │ gzip:   0.77 kB
+dist/electron/public/assets/index-4fngzYVD.css   71.89 kB │ gzip:  11.86 kB
+dist/electron/public/assets/index-BZW1cVbU.js   528.24 kB │ gzip: 158.63 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 5.79s
+✔  Frontend → dist/electron/public/
+
+▶  Bundling server…
+
+  dist\electron\server.cjs  50.0kb
+
+Done in 28ms
+✔  Server → dist/electron/server.cjs
+
+▶  Bundling Electron main process…
+
+  dist\electron\main.cjs  568.5kb
+
+Done in 57ms
+✔  Main process → dist/electron/main.cjs
+
+✔  Preload → dist/electron/preload.js
+
+▶  Packaging installer (electron-builder)…
+  • electron-builder  version=26.8.1 os=10.0.26200
+  • loaded configuration  file=C:\DJ-Clip-Finder\electron-builder.yml
+  • description is missed in the package.json  appPackageFile=C:\DJ-Clip-Finder\package.json
+  • author is missed in the package.json  appPackageFile=C:\DJ-Clip-Finder\package.json
+
+❌ Build failed: Package "electron" is only allowed in "devDependencies". Please remove it from the "dependencies" section in your package.json.
+Package "electron-builder" is only allowed in "devDependencies". Please remove it from the "dependencies" section in your package.json.
