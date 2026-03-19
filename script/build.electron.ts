@@ -186,9 +186,13 @@ async function buildAll() {
         ? "electron/build-resources/icon.ico"
         : undefined,
       target: [{ target: "nsis", arch: ["x64"] }],
-      // No-op sign function — skips signtool entirely so winCodeSign is
-      // never downloaded. No certificate is needed for beta builds.
-      sign: async () => {},
+      // Disable all code signing — no certificate needed for beta builds.
+      // signAndEditExecutable: false skips signing the main .exe.
+      // signExts: [] stops electron-builder from signing any bundled .exe
+      // files (e.g. ffmpeg), which prevents the winCodeSign download that
+      // fails on non-admin Windows due to macOS symlinks in the archive.
+      signAndEditExecutable: false,
+      signExts: [],
     },
     nsis: {
       oneClick: false,
