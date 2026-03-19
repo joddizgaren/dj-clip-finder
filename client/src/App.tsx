@@ -14,55 +14,9 @@ import { useState, useEffect } from "react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type AuthState = "checking" | "authenticated" | "unauthenticated";
+type AuthState = "checking" | "authenticated" | "unauthenticated" | "disabled";
 
-// ─── Update banner ─────────────────────────────────────────────────────────────
-
-function UpdateBanner() {
-  const [updateReady, setUpdateReady] = useState(false);
-  const [dismissed, setDismissed] = useState(false);
-
-  useEffect(() => {
-    if (!isElectron()) return;
-    const api = (window as any).electronAPI;
-    api.onUpdateDownloaded(() => setUpdateReady(true));
-  }, []);
-
-  if (!updateReady || dismissed) return null;
-
-  return (
-    <div
-      data-testid="update-banner"
-      className="flex items-center justify-between gap-3 bg-primary text-primary-foreground px-4 py-2 text-sm"
-    >
-      <div className="flex items-center gap-2">
-        <RefreshCw className="w-4 h-4 shrink-0" />
-        <span>A new version is ready.</span>
-      </div>
-      <div className="flex items-center gap-2">
-        <Button
-          data-testid="button-restart-update"
-          size="sm"
-          variant="secondary"
-          className="h-7 text-xs"
-          onClick={() => (window as any).electronAPI.installUpdate()}
-        >
-          Restart to install
-        </Button>
-        <button
-          data-testid="button-dismiss-update"
-          onClick={() => setDismissed(true)}
-          className="opacity-70 hover:opacity-100 transition-opacity"
-          aria-label="Dismiss update notification"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// ─── App shell ────────────────────────────────────────────────────────────────
+// ─── App shell with update banner ─────────────────────────────────────────────
 
 function Router() {
   return (
@@ -74,23 +28,63 @@ function Router() {
 }
 
 interface AppShellProps {
-  onSignOut?: () => void;
+  onSignOut: () => void;
 }
 
 function AppShell({ onSignOut }: AppShellProps) {
+  const [updateReady, setUpdateReady] = useState(false);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!isElectron()) return;
+    window.electronAPI!.onUpdateDownloaded(() => setUpdateReady(true));
+  }, []);
+
+  const showBanner = updateReady && !bannerDismissed;
+
   return (
-    <>
-      <UpdateBanner />
-      <header className="sticky top-0 z-50 bg-background/90 backdrop-blur border-b border-border px-4 py-2 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-6 h-6 rounded bg-primary flex items-center justify-center">
-            <Music2 className="w-3.5 h-3.5 text-primary-foreground" />
+    <div className={showBanner ? "pt-9" : undefined}>
+      {showBanner && (
+        <div
+          data-testid="update-banner"
+          className="fixed inset-x-0 top-0 z-[60] flex h-9 items-center justify-between gap-3 bg-primary px-4 text-sm text-primary-foreground"
+        >
+          <div className="flex items-center gap-2">
+            <RefreshCw className="h-4 w-4 shrink-0" />
+            <span>A new version is ready.</span>
           </div>
-          <span className="font-semibold text-sm text-foreground">DJ Clip Studio</span>
+          <div className="flex items-center gap-2">
+            <Button
+              data-testid="button-restart-update"
+              size="sm"
+              variant="secondary"
+              className="h-6 text-xs"
+              onClick={() => window.electronAPI!.installUpdate()}
+            >
+              Restart to install
+            </Button>
+            <button
+              data-testid="button-dismiss-update"
+              onClick={() => setBannerDismissed(true)}
+              className="opacity-70 transition-opacity hover:opacity-100"
+              aria-label="Dismiss update notification"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      <header className="sticky top-0 z-50 flex items-center justify-between border-b border-border bg-background/90 px-4 py-2 backdrop-blur">
+        <div className="flex items-center gap-2">
+          <div className="flex h-6 w-6 items-center justify-center rounded bg-primary">
+            <Music2 className="h-3.5 w-3.5 text-primary-foreground" />
+          </div>
+          <span className="text-sm font-semibold text-foreground">DJ Clip Studio</span>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
-          {isElectron() && onSignOut && (
+          {isElectron() && (
             <Button
               data-testid="button-signout"
               variant="ghost"
@@ -98,19 +92,25 @@ function AppShell({ onSignOut }: AppShellProps) {
               className="h-8 gap-1.5 text-muted-foreground hover:text-foreground"
               onClick={onSignOut}
             >
-              <LogOut className="w-3.5 h-3.5" />
+              <LogOut className="h-3.5 w-3.5" />
               <span className="text-xs">Sign out</span>
             </Button>
           )}
         </div>
       </header>
+
       <Router />
       <Toaster />
-    </>
+    </div>
   );
 }
 
 // ─── Auth gate ────────────────────────────────────────────────────────────────
+
+function isBannedError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return lower.includes("banned") || lower.includes("disabled");
+}
 
 function AuthGate() {
   const [authState, setAuthState] = useState<AuthState>(
@@ -123,12 +123,12 @@ function AuthGate() {
       return;
     }
 
-    // Validate existing session against Supabase on every launch
     supabase.auth.getUser().then(({ data, error }) => {
-      if (data?.user && !error) {
+      if (data.user && !error) {
         setAuthState("authenticated");
+      } else if (error && isBannedError(error.message)) {
+        supabase!.auth.signOut().finally(() => setAuthState("disabled"));
       } else {
-        // Clear any stale local session
         supabase!.auth.signOut().finally(() => setAuthState("unauthenticated"));
       }
     });
@@ -142,10 +142,28 @@ function AuthGate() {
 
   if (authState === "checking") {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
           <span className="text-sm">Starting…</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (authState === "disabled") {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4">
+        <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-destructive/10">
+            <Music2 className="h-7 w-7 text-destructive" />
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold text-foreground">Account disabled</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              This account has been disabled. Contact support.
+            </p>
+          </div>
         </div>
       </div>
     );

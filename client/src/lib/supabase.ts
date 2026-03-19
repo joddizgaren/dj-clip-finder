@@ -9,5 +9,5 @@ export const supabase: SupabaseClient | null =
   url && key ? createClient(url, key) : null;
 
 export function isElectron(): boolean {
-  return typeof window !== "undefined" && typeof (window as any).electronAPI !== "undefined";
+  return typeof window !== "undefined" && window.electronAPI !== undefined;
 }

@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 
 interface LoginPageProps {
   onLoginSuccess: () => void;
+  initialError?: string;
 }
 
 function friendlyError(message: string): string {
@@ -15,7 +16,7 @@ function friendlyError(message: string): string {
     return "Email or password is incorrect. Please try again.";
   }
   if (lower.includes("banned") || lower.includes("disabled")) {
-    return "This account has been disabled. Please contact support.";
+    return "Account disabled. Contact support.";
   }
   if (lower.includes("email not confirmed")) {
     return "Please check your email inbox and confirm your account first.";
@@ -29,11 +30,11 @@ function friendlyError(message: string): string {
   return "Something went wrong. Please try again.";
 }
 
-export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
+export default function LoginPage({ onLoginSuccess, initialError }: LoginPageProps) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError ?? null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -53,7 +54,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
         return;
       }
 
-      // Confirm the user isn't banned by re-fetching their profile
+      // Confirm the user is not banned by re-fetching from the server
       const { error: userError } = await supabase.auth.getUser();
       if (userError) {
         setError(friendlyError(userError.message));
@@ -62,8 +63,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
       }
 
       onLoginSuccess();
-    } catch (err: any) {
-      setError(friendlyError(err?.message ?? "Unknown error"));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setError(friendlyError(message));
     } finally {
       setLoading(false);
     }
@@ -72,7 +74,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-8">
-        {/* Logo */}
         <div className="flex flex-col items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center shadow-lg">
             <Music2 className="w-7 h-7 text-primary-foreground" />
@@ -87,7 +88,6 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps) {
           </div>
         </div>
 
-        {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="login-email">Email</Label>
