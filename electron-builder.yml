@@ -24,7 +24,7 @@ extraResources:
     to: server.cjs
   - from: node_modules/better-sqlite3
     to: node_modules/better-sqlite3
-  - from: electron/ffmpeg
+  - from: dist/electron/ffmpeg
     to: ffmpeg
 
 # better-sqlite3 contains a native .node file — unpack it from the ASAR
