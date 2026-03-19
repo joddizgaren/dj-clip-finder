@@ -165,6 +165,12 @@ async function buildAll() {
   }
   await writeFile("package.json", JSON.stringify(pkgObj, null, 2) + "\n");
 
+  // Disable code signing — no certificate available for beta builds,
+  // and winCodeSign extraction fails on Windows without Admin symlink privileges.
+  process.env.CSC_IDENTITY_AUTO_DISCOVERY = "false";
+  process.env.CSC_LINK = "";
+  process.env.WIN_CSC_LINK = "";
+
   console.log("▶  Packaging installer (electron-builder)…");
   const { build: electronBuild } = await import("electron-builder");
 
