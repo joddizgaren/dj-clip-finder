@@ -64,7 +64,10 @@ async function buildAll() {
   // ── 1. Clean output ───────────────────────────────────────────────────────
   await rm("dist/electron", { recursive: true, force: true });
   await mkdir("dist/electron", { recursive: true });
-  console.log("✔  Cleaned dist/electron/");
+  // Also clean the unpacked staging folder so stale/locked files don't block
+  // subsequent builds (the installer .exe files in release/ are kept).
+  await rm("release/win-unpacked", { recursive: true, force: true });
+  console.log("✔  Cleaned dist/electron/ and release/win-unpacked/");
 
   // ── 2. Build the React frontend ───────────────────────────────────────────
   // Bake Supabase credentials into the bundle so the installer works on any
