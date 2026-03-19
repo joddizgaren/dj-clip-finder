@@ -159,6 +159,7 @@ async function buildAll() {
     config: {
       appId: "com.joddizgaren.djclipstudio",
       productName: "DJ Clip Studio",
+      npmRebuild: false,
       directories: { output: "release", buildResources: "electron/build-resources" },
       extraMetadata: { main: "dist/electron/main.cjs" },
       files: [
