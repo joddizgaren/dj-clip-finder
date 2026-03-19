@@ -67,11 +67,25 @@ async function buildAll() {
   console.log("✔  Cleaned dist/electron/");
 
   // ── 2. Build the React frontend ───────────────────────────────────────────
+  // Bake Supabase credentials into the bundle so the installer works on any
+  // machine without the user needing to set env vars.
+  // These are publishable/anon keys — safe to embed in client-side code.
+  const supabaseUrl =
+    process.env.VITE_SUPABASE_URL ||
+    "https://fodnipoqwervrgodouim.supabase.co";
+  const supabaseKey =
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    "sb_publishable_z2I23CmsWY5NK1QSuH-qVw_sU8lju_b";
+
   console.log("▶  Building frontend (Vite)…");
   await viteBuild({
     build: {
       outDir: "dist/electron/public",
       emptyOutDir: true,
+    },
+    define: {
+      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(supabaseUrl),
+      "import.meta.env.VITE_SUPABASE_ANON_KEY": JSON.stringify(supabaseKey),
     },
   });
   console.log("✔  Frontend → dist/electron/public/\n");
