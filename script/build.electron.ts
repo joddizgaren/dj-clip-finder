@@ -180,13 +180,6 @@ async function buildAll() {
       "dist/electron/public/**/*",
       "package.json",
     ],
-    extraResources: [
-      { from: "dist/electron/server.cjs", to: "server.cjs" },
-      { from: "node_modules/better-sqlite3", to: "node_modules/better-sqlite3" },
-      ...(existsSync("dist/electron/ffmpeg/ffmpeg.exe")
-        ? [{ from: "dist/electron/ffmpeg", to: "ffmpeg" }]
-        : []),
-    ],
     asarUnpack: ["node_modules/better-sqlite3/**/*"],
     win: {
       icon: existsSync("electron/build-resources/icon.ico")
