@@ -1,0 +1,362 @@
+Microsoft Windows [Version 10.0.26200.8037]
+(c) Microsoft Corporation. All rights reserved.
+
+C:\DJ-Clip-Finder>npx tsx script/build.electron.ts
+═══════════════════════════════════════
+  DJ Clip Studio — Electron Build
+═══════════════════════════════════════
+
+✔  Cleaned dist/electron/ and release/
+⚠  VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY not found in environment.
+   Falling back to baked-in publishable keys.
+   For production builds, set these env vars before running the build script.
+
+▶  Building frontend (Vite)…
+vite v7.3.0 building client environment for production...
+transforming (4) src\App.tsx
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+✓ 1750 modules transformed.
+dist/electron/public/index.html                   2.01 kB │ gzip:   0.77 kB
+dist/electron/public/assets/index-CV1Vszr4.css   72.09 kB │ gzip:  11.91 kB
+dist/electron/public/assets/index-ddWZ2LN9.js   533.37 kB │ gzip: 159.50 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 4.09s
+✔  Frontend → dist/electron/public/
+
+▶  Bundling server…
+
+  dist\electron\server.cjs  50.0kb
+
+Done in 17ms
+✔  Server → dist/electron/server.cjs
+
+▶  Bundling Electron main process…
+
+  dist\electron\main.cjs  569.5kb
+
+Done in 64ms
+✔  Main process → dist/electron/main.cjs
+
+✔  Preload → dist/electron/preload.js
+
+▶  Rebuilding better-sqlite3 for Electron runtime…
+npm warn gitignore-fallback No .npmignore file found, using .gitignore for file exclusion. Consider creating a .npmignore file to explicitly control published files.
+npm warn skipping integrity check for git dependency ssh://git@github.com/electron/node-gyp.git
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated @npmcli/move-file@2.0.1: This functionality has been moved to @npmcli/fs
+npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+npm warn deprecated glob@8.1.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn deprecated tar@6.2.1: Old versions of tar are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+npm warn gitignore-fallback No .npmignore file found, using .gitignore for file exclusion. Consider creating a .npmignore file to explicitly control published files.
+/ Building module: bufferutil, Completed: 1gyp verb clean removing "build" directory
+gyp verb download using dist-url https://www.electronjs.org/headers
+gyp verb find Python Python is not set from command line or npm configuration
+gyp verb find Python Python is not set from environment variable PYTHON
+gyp verb find Python checking if the py launcher can be used to find Python 3
+gyp verb find Python - executing "py.exe" to get Python 3 executable path
+gyp sill find Python execFile: exec = "py.exe"
+gyp sill find Python execFile: args = ["-3","-c","import sys; sys.stdout.buffer.write(sys.executable.encode('utf-8'));"]
+gyp sill find Python execFile: opts = {"env":{"ALLUSERSPROFILE":"C:\\ProgramData","APPDATA":"C:\\Users\\jgarr\\AppData\\Roaming","ChocolateyInstall":"C:\\ProgramData\\chocolatey","ChocolateyLastPathUpdate":"134175307185455893","COLOR":"1","CommonProgramFiles":"C:\\Program Files\\Common Files","CommonProgramFiles(x86)":"C:\\Program Files (x86)\\Common Files","CommonProgramW6432":"C:\\Program Files\\Common Files","COMPUTERNAME":"JORGE-LAPTOP","ComSpec":"C:\\WINDOWS\\system32\\cmd.exe","DriverData":"C:\\Windows\\System32\\Drivers\\DriverData","EDITOR":"C:\\WINDOWS\\notepad.exe","HOME":"C:\\Users\\jgarr","HOMEDRIVE":"C:","HOMEPATH":"\\Users\\jgarr","INIT_CWD":"C:\\DJ-Clip-Finder","LOCALAPPDATA":"C:\\Users\\jgarr\\AppData\\Local","LOGONSERVER":"\\\\JORGE-LAPTOP","NODE":"C:\\Program Files\\nodejs\\node.exe","NODE_ENV":"production","NODE_EXE":"C:\\Program Files\\nodejs\\\\node.exe","npm_command":"exec","npm_config_cache":"C:\\Users\\jgarr\\AppData\\Local\\npm-cache","npm_config_globalconfig":"C:\\Users\\jgarr\\AppData\\Roaming\\npm\\etc\\npmrc","npm_config_global_prefix":"C:\\Users\\jgarr\\AppData\\Roaming\\npm","npm_config_init_module":"C:\\Users\\jgarr\\.npm-init.js","npm_config_local_prefix":"C:\\DJ-Clip-Finder","npm_config_node_gyp":"C:\\Program Files\\nodejs\\node_modules\\npm\\node_modules\\node-gyp\\bin\\node-gyp.js","npm_config_noproxy":"","npm_config_npm_version":"11.9.0","npm_config_prefix":"C:\\Users\\jgarr\\AppData\\Roaming\\npm","npm_config_userconfig":"C:\\Users\\jgarr\\.npmrc","npm_config_user_agent":"npm/11.9.0 node/v24.14.0 win32 x64 workspaces/false","npm_config_yes":"true","npm_execpath":"C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js","npm_lifecycle_event":"npx","npm_lifecycle_script":"electron-rebuild","npm_node_execpath":"C:\\Program Files\\nodejs\\node.exe","npm_package_json":"C:\\DJ-Clip-Finder\\package.json","npm_package_name":"rest-express","npm_package_version":"1.0.0","NPM_PREFIX_JS":"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npm-prefix.js","NPM_PREFIX_NPX_CLI_JS":"C:\\Users\\jgarr\\AppData\\Roaming\\npm\\node_modules\\npm\\bin\\npx-cli.js","NPX_CLI_JS":"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js","NUMBER_OF_PROCESSORS":"12","OneDrive":"C:\\Users\\jgarr\\OneDrive","OneDriveConsumer":"C:\\Users\\jgarr\\OneDrive","OS":"Windows_NT","Path":"C:\\Users\\jgarr\\AppData\\Local\\npm-cache\\_npx\\0d53a011b5de36d4\\node_modules\\.bin;C:\\DJ-Clip-Finder\\node_modules\\.bin;C:\\node_modules\\.bin;C:\\Program Files\\nodejs\\node_modules\\npm\\node_modules\\@npmcli\\run-script\\lib\\node-gyp-bin;C:\\DJ-Clip-Finder\\node_modules\\.bin;C:\\DJ-Clip-Finder\\node_modules\\.bin;C:\\node_modules\\.bin;C:\\Program Files\\nodejs\\node_modules\\npm\\node_modules\\@npmcli\\run-script\\lib\\node-gyp-bin;C:\\Python314\\Scripts\\;C:\\Python314\\;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\java8path;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\;C:\\Windows\\System32\\OpenSSH\\;C:\\Program Files (x86)\\NVIDIA Corporation\\PhysX\\Common;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\;C:\\WINDOWS\\System32\\OpenSSH\\;C:\\Program Files\\dotnet\\;C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\NvDLISR;C:\\Program Files\\nodejs\\;C:\\ProgramData\\chocolatey\\bin;C:\\ffmpeg\\bin;C:\\Program Files\\Git\\cmd;C:\\Users\\jgarr\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\;C:\\Users\\jgarr\\AppData\\Local\\Programs\\Python\\Python313\\;C:\\Users\\jgarr\\AppData\\Local\\Microsoft\\WindowsApps;C:\\Users\\jgarr\\AppData\\Roaming\\npm","PATHEXT":".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.PY;.PYW","PROCESSOR_ARCHITECTURE":"AMD64","PROCESSOR_IDENTIFIER":"Intel64 Family 6 Model 141 Stepping 1, GenuineIntel","PROCESSOR_LEVEL":"6","PROCESSOR_REVISION":"8d01","ProgramData":"C:\\ProgramData","ProgramFiles":"C:\\Program Files","ProgramFiles(x86)":"C:\\Program Files (x86)","ProgramW6432":"C:\\Program Files","PROMPT":"$P$G","PSModulePath":"C:\\Program Files\\WindowsPowerShell\\Modules;C:\\WINDOWS\\system32\\WindowsPowerShell\\v1.0\\Modules","PUBLIC":"C:\\Users\\Public","SESSIONNAME":"Console","SystemDrive":"C:","SystemRoot":"C:\\WINDOWS","TEMP":"C:\\Users\\jgarr\\AppData\\Local\\Temp","TMP":"C:\\Users\\jgarr\\AppData\\Local\\Temp","USERDOMAIN":"JORGE-LAPTOP","USERDOMAIN_ROAMINGPROFILE":"JORGE-LAPTOP","USERNAME":"jgarr","USERPROFILE":"C:\\Users\\jgarr","windir":"C:\\WINDOWS","ZES_ENABLE_SYSMAN":"1","__PSLockDownPolicy":"0","TERM":"dumb"},"shell":false}
+(node:5892) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+gyp sill find Python execFile result: err = null
+gyp sill find Python execFile result: stdout = "C:\\Python314\\python.exe"
+gyp sill find Python execFile result: stderr = ""
+gyp verb find Python - executable path is "C:\Python314\python.exe"
+gyp verb find Python - executing "C:\Python314\python.exe" to get version
+gyp sill find Python execFile: exec = "C:\\Python314\\python.exe"
+gyp sill find Python execFile: args = ["-c","import sys; print(\"%s.%s.%s\" % sys.version_info[:3]);"]
+gyp sill find Python execFile: opts = {"env":{"ALLUSERSPROFILE":"C:\\ProgramData","APPDATA":"C:\\Users\\jgarr\\AppData\\Roaming","ChocolateyInstall":"C:\\ProgramData\\chocolatey","ChocolateyLastPathUpdate":"134175307185455893","COLOR":"1","CommonProgramFiles":"C:\\Program Files\\Common Files","CommonProgramFiles(x86)":"C:\\Program Files (x86)\\Common Files","CommonProgramW6432":"C:\\Program Files\\Common Files","COMPUTERNAME":"JORGE-LAPTOP","ComSpec":"C:\\WINDOWS\\system32\\cmd.exe","DriverData":"C:\\Windows\\System32\\Drivers\\DriverData","EDITOR":"C:\\WINDOWS\\notepad.exe","HOME":"C:\\Users\\jgarr","HOMEDRIVE":"C:","HOMEPATH":"\\Users\\jgarr","INIT_CWD":"C:\\DJ-Clip-Finder","LOCALAPPDATA":"C:\\Users\\jgarr\\AppData\\Local","LOGONSERVER":"\\\\JORGE-LAPTOP","NODE":"C:\\Program Files\\nodejs\\node.exe","NODE_ENV":"production","NODE_EXE":"C:\\Program Files\\nodejs\\\\node.exe","npm_command":"exec","npm_config_cache":"C:\\Users\\jgarr\\AppData\\Local\\npm-cache","npm_config_globalconfig":"C:\\Users\\jgarr\\AppData\\Roaming\\npm\\etc\\npmrc","npm_config_global_prefix":"C:\\Users\\jgarr\\AppData\\Roaming\\npm","npm_config_init_module":"C:\\Users\\jgarr\\.npm-init.js","npm_config_local_prefix":"C:\\DJ-Clip-Finder","npm_config_node_gyp":"C:\\Program Files\\nodejs\\node_modules\\npm\\node_modules\\node-gyp\\bin\\node-gyp.js","npm_config_noproxy":"","npm_config_npm_version":"11.9.0","npm_config_prefix":"C:\\Users\\jgarr\\AppData\\Roaming\\npm","npm_config_userconfig":"C:\\Users\\jgarr\\.npmrc","npm_config_user_agent":"npm/11.9.0 node/v24.14.0 win32 x64 workspaces/false","npm_config_yes":"true","npm_execpath":"C:\\Program Files\\nodejs\\node_modules\\npm\\bin\\npm-cli.js","npm_lifecycle_event":"npx","npm_lifecycle_script":"electron-rebuild","npm_node_execpath":"C:\\Program Files\\nodejs\\node.exe","npm_package_json":"C:\\DJ-Clip-Finder\\package.json","npm_package_name":"rest-express","npm_package_version":"1.0.0","NPM_PREFIX_JS":"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npm-prefix.js","NPM_PREFIX_NPX_CLI_JS":"C:\\Users\\jgarr\\AppData\\Roaming\\npm\\node_modules\\npm\\bin\\npx-cli.js","NPX_CLI_JS":"C:\\Program Files\\nodejs\\\\node_modules\\npm\\bin\\npx-cli.js","NUMBER_OF_PROCESSORS":"12","OneDrive":"C:\\Users\\jgarr\\OneDrive","OneDriveConsumer":"C:\\Users\\jgarr\\OneDrive","OS":"Windows_NT","Path":"C:\\Users\\jgarr\\AppData\\Local\\npm-cache\\_npx\\0d53a011b5de36d4\\node_modules\\.bin;C:\\DJ-Clip-Finder\\node_modules\\.bin;C:\\node_modules\\.bin;C:\\Program Files\\nodejs\\node_modules\\npm\\node_modules\\@npmcli\\run-script\\lib\\node-gyp-bin;C:\\DJ-Clip-Finder\\node_modules\\.bin;C:\\DJ-Clip-Finder\\node_modules\\.bin;C:\\node_modules\\.bin;C:\\Program Files\\nodejs\\node_modules\\npm\\node_modules\\@npmcli\\run-script\\lib\\node-gyp-bin;C:\\Python314\\Scripts\\;C:\\Python314\\;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\java8path;C:\\Program Files (x86)\\Common Files\\Oracle\\Java\\javapath;C:\\Windows\\system32;C:\\Windows;C:\\Windows\\System32\\Wbem;C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\;C:\\Windows\\System32\\OpenSSH\\;C:\\Program Files (x86)\\NVIDIA Corporation\\PhysX\\Common;C:\\WINDOWS\\system32;C:\\WINDOWS;C:\\WINDOWS\\System32\\Wbem;C:\\WINDOWS\\System32\\WindowsPowerShell\\v1.0\\;C:\\WINDOWS\\System32\\OpenSSH\\;C:\\Program Files\\dotnet\\;C:\\Program Files\\NVIDIA Corporation\\NVIDIA App\\NvDLISR;C:\\Program Files\\nodejs\\;C:\\ProgramData\\chocolatey\\bin;C:\\ffmpeg\\bin;C:\\Program Files\\Git\\cmd;C:\\Users\\jgarr\\AppData\\Local\\Programs\\Python\\Python313\\Scripts\\;C:\\Users\\jgarr\\AppData\\Local\\Programs\\Python\\Python313\\;C:\\Users\\jgarr\\AppData\\Local\\Microsoft\\WindowsApps;C:\\Users\\jgarr\\AppData\\Roaming\\npm","PATHEXT":".COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC;.PY;.PYW","PROCESSOR_ARCHITECTURE":"AMD64","PROCESSOR_IDENTIFIER":"Intel64 Family 6 Model 141 Stepping 1, GenuineIntel","PROCESSOR_LEVEL":"6","PROCESSOR_REVISION":"8d01","ProgramData":"C:\\ProgramData","ProgramFiles":"C:\\Program Files","ProgramFiles(x86)":"C:\\Program Files (x86)","ProgramW6432":"C:\\Program Files","PROMPT":"$P$G","PSModulePath":"C:\\Program Files\\WindowsPowerShell\\Modules;C:\\WINDOWS\\system32\\WindowsPowerShell\\v1.0\\Modules","PUBLIC":"C:\\Users\\Public","SESSIONNAME":"Console","SystemDrive":"C:","SystemRoot":"C:\\WINDOWS","TEMP":"C:\\Users\\jgarr\\AppData\\Local\\Temp","TMP":"C:\\Users\\jgarr\\AppData\\Local\\Temp","USERDOMAIN":"JORGE-LAPTOP","USERDOMAIN_ROAMINGPROFILE":"JORGE-LAPTOP","USERNAME":"jgarr","USERPROFILE":"C:\\Users\\jgarr","windir":"C:\\WINDOWS","ZES_ENABLE_SYSMAN":"1","__PSLockDownPolicy":"0","TERM":"dumb"},"shell":false}
+gyp sill find Python execFile result: err = null
+gyp sill find Python execFile result: stdout = "3.14.3\r\n"
+gyp sill find Python execFile result: stderr = ""
+gyp verb find Python - version is "3.14.3"
+gyp info find Python using Python version 3.14.3 found at "C:\Python314\python.exe"
+gyp verb get node dir compiling against --target node version: 41.0.3
+
+gyp verb download using dist-url https://www.electronjs.org/headers
+gyp verb install input version string "41.0.3"
+gyp verb install installing version: 41.0.3
+gyp verb install --ensure was passed, so won't reinstall if already installed
+gyp verb install version not already installed, continuing with install 41.0.3
+gyp verb ensuring devDir is created C:\Users\jgarr\.electron-gyp\41.0.3
+gyp verb created devDir \\?\C:\Users\jgarr\.electron-gyp
+gyp http GET https://www.electronjs.org/headers/v41.0.3/node-v41.0.3-headers.tar.gz
+gyp http 200 https://artifacts.electronjs.org/headers/dist/v41.0.3/node-v41.0.3-headers.tar.gz
+gyp sill ignoring from tarball node_headers/
+gyp sill ignoring from tarball node_headers/include/
+gyp sill ignoring from tarball node_headers/include/node/
+gyp verb extracted file from tarball node_headers/include/node/common.gypi
+gyp verb extracted file from tarball node_headers/include/node/config.gypi
+gyp sill ignoring from tarball node_headers/include/node/cppgc/
+gyp verb extracted file from tarball node_headers/include/node/cppgc/allocation.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/common.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/cross-thread-persistent.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/custom-space.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/default-platform.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/explicit-management.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/garbage-collected.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/heap-consistency.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/heap-handle.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/heap-state.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/heap-statistics.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/heap.h
+gyp sill ignoring from tarball node_headers/include/node/cppgc/internal/
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/api-constants.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/atomic-entry-flag.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/base-page-handle.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/caged-heap-local-data.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/caged-heap.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/compiler-specific.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/conditional-stack-allocated.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/finalizer-trait.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/gc-info.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/logging.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/member-storage.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/name-trait.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/persistent-node.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/pointer-policies.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/internal/write-barrier.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/liveness-broker.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/macros.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/member.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/name-provider.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/object-size-trait.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/persistent.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/platform.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/prefinalizer.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/process-heap-statistics.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/sentinel-pointer.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/source-location.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/testing.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/trace-trait.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/type-traits.h
+gyp verb extracted file from tarball node_headers/include/node/cppgc/visitor.h
+gyp verb extracted file from tarball node_headers/include/node/js_native_api.h
+gyp verb extracted file from tarball node_headers/include/node/js_native_api_types.h
+gyp sill ignoring from tarball node_headers/include/node/libplatform/
+gyp verb extracted file from tarball node_headers/include/node/libplatform/libplatform-export.h
+gyp verb extracted file from tarball node_headers/include/node/libplatform/libplatform.h
+gyp verb extracted file from tarball node_headers/include/node/libplatform/v8-tracing.h
+gyp verb extracted file from tarball node_headers/include/node/node.h
+gyp verb extracted file from tarball node_headers/include/node/node_api.h
+gyp verb extracted file from tarball node_headers/include/node/node_api_types.h
+gyp verb extracted file from tarball node_headers/include/node/node_buffer.h
+gyp verb extracted file from tarball node_headers/include/node/node_object_wrap.h
+gyp verb extracted file from tarball node_headers/include/node/node_version.h
+gyp sill ignoring from tarball node_headers/include/node/uv/
+gyp verb extracted file from tarball node_headers/include/node/uv/aix.h
+gyp verb extracted file from tarball node_headers/include/node/uv/bsd.h
+gyp verb extracted file from tarball node_headers/include/node/uv/darwin.h
+gyp verb extracted file from tarball node_headers/include/node/uv/errno.h
+gyp verb extracted file from tarball node_headers/include/node/uv/linux.h
+gyp verb extracted file from tarball node_headers/include/node/uv/os390.h
+gyp verb extracted file from tarball node_headers/include/node/uv/posix.h
+gyp verb extracted file from tarball node_headers/include/node/uv/sunos.h
+gyp verb extracted file from tarball node_headers/include/node/uv/threadpool.h
+gyp verb extracted file from tarball node_headers/include/node/uv/tree.h
+gyp verb extracted file from tarball node_headers/include/node/uv/unix.h
+gyp verb extracted file from tarball node_headers/include/node/uv/version.h
+gyp verb extracted file from tarball node_headers/include/node/uv/win.h
+gyp verb extracted file from tarball node_headers/include/node/uv.h
+gyp verb extracted file from tarball node_headers/include/node/v8-array-buffer.h
+gyp verb extracted file from tarball node_headers/include/node/v8-callbacks.h
+gyp verb extracted file from tarball node_headers/include/node/v8-container.h
+gyp verb extracted file from tarball node_headers/include/node/v8-context.h
+gyp verb extracted file from tarball node_headers/include/node/v8-cppgc.h
+gyp verb extracted file from tarball node_headers/include/node/v8-data.h
+gyp verb extracted file from tarball node_headers/include/node/v8-date.h
+gyp verb extracted file from tarball node_headers/include/node/v8-debug.h
+gyp verb extracted file from tarball node_headers/include/node/v8-embedder-heap.h
+gyp verb extracted file from tarball node_headers/include/node/v8-embedder-state-scope.h
+gyp verb extracted file from tarball node_headers/include/node/v8-exception.h
+gyp verb extracted file from tarball node_headers/include/node/v8-extension.h
+gyp verb extracted file from tarball node_headers/include/node/v8-external.h
+gyp verb extracted file from tarball node_headers/include/node/v8-forward.h
+gyp verb extracted file from tarball node_headers/include/node/v8-function-callback.h
+gyp verb extracted file from tarball node_headers/include/node/v8-function.h
+gyp verb extracted file from tarball node_headers/include/node/v8-handle-base.h
+gyp verb extracted file from tarball node_headers/include/node/v8-initialization.h
+gyp verb extracted file from tarball node_headers/include/node/v8-internal.h
+gyp verb extracted file from tarball node_headers/include/node/v8-isolate.h
+gyp verb extracted file from tarball node_headers/include/node/v8-json.h
+gyp verb extracted file from tarball node_headers/include/node/v8-local-handle.h
+gyp verb extracted file from tarball node_headers/include/node/v8-locker.h
+gyp verb extracted file from tarball node_headers/include/node/v8-maybe.h
+gyp verb extracted file from tarball node_headers/include/node/v8-memory-span.h
+gyp verb extracted file from tarball node_headers/include/node/v8-message.h
+gyp verb extracted file from tarball node_headers/include/node/v8-microtask-queue.h
+gyp verb extracted file from tarball node_headers/include/node/v8-microtask.h
+gyp verb extracted file from tarball node_headers/include/node/v8-object.h
+gyp verb extracted file from tarball node_headers/include/node/v8-persistent-handle.h
+gyp verb extracted file from tarball node_headers/include/node/v8-platform.h
+gyp verb extracted file from tarball node_headers/include/node/v8-primitive-object.h
+gyp verb extracted file from tarball node_headers/include/node/v8-primitive.h
+gyp verb extracted file from tarball node_headers/include/node/v8-profiler.h
+gyp verb extracted file from tarball node_headers/include/node/v8-promise.h
+gyp verb extracted file from tarball node_headers/include/node/v8-proxy.h
+gyp verb extracted file from tarball node_headers/include/node/v8-regexp.h
+gyp verb extracted file from tarball node_headers/include/node/v8-sandbox.h
+gyp verb extracted file from tarball node_headers/include/node/v8-script.h
+gyp verb extracted file from tarball node_headers/include/node/v8-snapshot.h
+gyp verb extracted file from tarball node_headers/include/node/v8-source-location.h
+gyp verb extracted file from tarball node_headers/include/node/v8-statistics.h
+gyp verb extracted file from tarball node_headers/include/node/v8-template.h
+gyp verb extracted file from tarball node_headers/include/node/v8-traced-handle.h
+gyp verb extracted file from tarball node_headers/include/node/v8-typed-array.h
+gyp verb extracted file from tarball node_headers/include/node/v8-unwinder.h
+gyp verb extracted file from tarball node_headers/include/node/v8-value-serializer.h
+gyp verb extracted file from tarball node_headers/include/node/v8-value.h
+gyp verb extracted file from tarball node_headers/include/node/v8-version.h
+gyp verb extracted file from tarball node_headers/include/node/v8-wasm.h
+gyp verb extracted file from tarball node_headers/include/node/v8-weak-callback-info.h
+gyp verb extracted file from tarball node_headers/include/node/v8.h
+gyp verb extracted file from tarball node_headers/include/node/v8config.h
+gyp verb extracted file from tarball node_headers/include/node/zconf.h
+gyp verb extracted file from tarball node_headers/include/node/zlib.h
+gyp verb content checksum node-v41.0.3-headers.tar.gz 048c2db9c02fc37ec1f14a617a33a354088947cfb9198068189447c799e87287
+gyp verb tarball done parsing tarball
+gyp verb on Windows; need to download `node.lib`...
+gyp verb x64 node.lib dir C:\Users\jgarr\AppData\Local\Temp\node-gyp-tmp-b5l3wE\x64
+gyp verb x64 node.lib url https://www.electronjs.org/headers/v41.0.3/win-x64/node.lib
+gyp verb check download content checksum, need to download `SHASUMS256.txt`...
+gyp verb checksum url https://www.electronjs.org/headers/v41.0.3/SHASUMS256.txt
+gyp http GET https://www.electronjs.org/headers/v41.0.3/SHASUMS256.txt
+gyp verb streaming x64 node.lib to: C:\Users\jgarr\AppData\Local\Temp\node-gyp-tmp-b5l3wE\x64\node.lib
+gyp http GET https://www.electronjs.org/headers/v41.0.3/win-x64/node.lib
+gyp http 200 https://artifacts.electronjs.org/headers/dist/v41.0.3/SHASUMS256.txt
+gyp verb checksum data {"node-v41.0.3.tar.gz":"048c2db9c02fc37ec1f14a617a33a354088947cfb9198068189447c799e87287","node-v41.0.3-headers.tar.gz":"048c2db9c02fc37ec1f14a617a33a354088947cfb9198068189447c799e87287","iojs-v41.0.3.tar.gz":"048c2db9c02fc37ec1f14a617a33a354088947cfb9198068189447c799e87287","iojs-v41.0.3-headers.tar.gz":"048c2db9c02fc37ec1f14a617a33a354088947cfb9198068189447c799e87287","node.lib":"960004691b9988d365d4ad99d051e40d058fe211c40574ffff13ee4bc1d72e70","x64/node.lib":"e26d4e47dfe0ad73b5d2271f58e55c9ebf3c66bd63a61eaae7571c60895ceabb","win-x86/iojs.lib":"960004691b9988d365d4ad99d051e40d058fe211c40574ffff13ee4bc1d72e70","win-x64/iojs.lib":"e26d4e47dfe0ad73b5d2271f58e55c9ebf3c66bd63a61eaae7571c60895ceabb","win-x86/node.lib":"960004691b9988d365d4ad99d051e40d058fe211c40574ffff13ee4bc1d72e70","win-x64/node.lib":"e26d4e47dfe0ad73b5d2271f58e55c9ebf3c66bd63a61eaae7571c60895ceabb","arm64/node.lib":"2615fd449e8c67678e0afa82e0f9e80cc6f4a9c93b6aa7696ef94019f5bac2aa","win-arm64/iojs.lib":"2615fd449e8c67678e0afa82e0f9e80cc6f4a9c93b6aa7696ef94019f5bac2aa","win-arm64/node.lib":"2615fd449e8c67678e0afa82e0f9e80cc6f4a9c93b6aa7696ef94019f5bac2aa"}
+gyp http 200 https://artifacts.electronjs.org/headers/dist/v41.0.3/win-x64/node.lib
+gyp verb content checksum win-x64/node.lib e26d4e47dfe0ad73b5d2271f58e55c9ebf3c66bd63a61eaae7571c60895ceabb
+gyp verb download contents checksum {"node-v41.0.3-headers.tar.gz":"048c2db9c02fc37ec1f14a617a33a354088947cfb9198068189447c799e87287","win-x64/node.lib":"e26d4e47dfe0ad73b5d2271f58e55c9ebf3c66bd63a61eaae7571c60895ceabb"}
+gyp verb validating download checksum for node-v41.0.3-headers.tar.gz (048c2db9c02fc37ec1f14a617a33a354088947cfb9198068189447c799e87287 == 048c2db9c02fc37ec1f14a617a33a354088947cfb9198068189447c799e87287)
+gyp verb validating download checksum for win-x64/node.lib (e26d4e47dfe0ad73b5d2271f58e55c9ebf3c66bd63a61eaae7571c60895ceabb == e26d4e47dfe0ad73b5d2271f58e55c9ebf3c66bd63a61eaae7571c60895ceabb)
+gyp verb get node dir target node version installed: 41.0.3
+gyp verb build dir attempting to create "build" dir: C:\DJ-Clip-Finder\node_modules\bufferutil\build
+gyp verb build dir "build" dir needed to be created? Yes
+gyp verb find VS msvs_version not set from command line or npm config
+gyp verb find VS VCINSTALLDIR not set, not running in VS Command Prompt
+gyp sill find VS Running C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe [
+gyp sill find VS '-NoProfile',
+gyp sill find VS '-Command',
+gyp sill find VS '&{@(Get-Module -ListAvailable -Name VSSetup).Version.ToString()}'
+gyp sill find VS ]
+gyp sill find VS Running C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe [
+gyp sill find VS '-NoProfile',
+gyp sill find VS '-Command',
+gyp sill find VS '&{Get-VSSetupInstance  | ConvertTo-Json -Depth 3}'
+gyp sill find VS ]
+gyp sill find VS PS stderr = "Get-VSSetupInstance : The term 'Get-VSSetupInstance' is not recognized as the name of a cmdlet, function, script file, \r\nor operable program. Check the spelling of the name, or if a path was included, verify that the path is correct and \r\ntry again.\r\nAt line:1 char:3\r\n+ &{Get-VSSetupInstance  | ConvertTo-Json -Depth 3}\r\n+   ~~~~~~~~~~~~~~~~~~~\r\n    + CategoryInfo          : ObjectNotFound: (Get-VSSetupInstance:String) [], CommandNotFoundException\r\n    + FullyQualifiedErrorId : CommandNotFoundException\r\n \r\n"
+gyp sill find VS PS stdout = ""
+gyp sill find VS SyntaxError: Unexpected end of JSON input
+gyp sill find VS at JSON.parse (<anonymous>)
+gyp sill find VS at VisualStudioFinder.parseData (C:\Users\jgarr\AppData\Local\npm-cache\_npx\0d53a011b5de36d4\node_modules\@electron\node-gyp\lib\find-visualstudio.js:286:21)
+gyp sill find VS at VisualStudioFinder.findNewVSUsingSetupModule (C:\Users\jgarr\AppData\Local\npm-cache\_npx\0d53a011b5de36d4\node_modules\@electron\node-gyp\lib\find-visualstudio.js:202:27)
+gyp sill find VS at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+gyp sill find VS at async VisualStudioFinder.findVisualStudio (C:\Users\jgarr\AppData\Local\npm-cache\_npx\0d53a011b5de36d4\node_modules\@electron\node-gyp\lib\find-visualstudio.js:68:20)
+gyp sill find VS at async createBuildDir (C:\Users\jgarr\AppData\Local\npm-cache\_npx\0d53a011b5de36d4\node_modules\@electron\node-gyp\lib\configure.js:112:18)
+gyp sill find VS at async process.<anonymous> (C:\Users\jgarr\AppData\Local\npm-cache\_npx\0d53a011b5de36d4\node_modules\@electron\rebuild\lib\module-type\node-gyp\worker.js:27:13)
+gyp verb find VS could not use PowerShell to find Visual Studio 2017 or newer, try re-running with '--loglevel silly' for more details.
+gyp verb find VS
+gyp verb find VS Failure details: undefined
+gyp sill find VS Running C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe [
+gyp sill find VS '-ExecutionPolicy',
+gyp sill find VS 'Unrestricted',
+gyp sill find VS '-NoProfile',
+gyp sill find VS '-Command',
+gyp sill find VS "&{Add-Type -Path 'C:\\Users\\jgarr\\AppData\\Local\\npm-cache\\_npx\\0d53a011b5de36d4\\node_modules\\@electron\\node-gyp\\lib\\Find-VisualStudio.cs';[VisualStudioConfiguration.Main]::PrintJson()}"
+gyp sill find VS ]
+gyp sill find VS PS stderr = ""
+gyp sill find VS processing installation: "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools"
+gyp sill find VS - version match = ["18.3.11520.95","18","3"]
+gyp sill find VS - unsupported version: 18
+gyp sill find VS - found VC.Tools.x86.x64
+gyp sill find VS - invalid versionYear: undefined
+gyp sill find VS - found Win10/11SDK: 26100
+gyp sill find VS vsInfo: [
+gyp sill find VS {
+gyp sill find VS path: 'C:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools',
+gyp sill find VS msBuild: 'C:\\Program Files (x86)\\Microsoft Visual Studio\\18\\BuildTools\\MSBuild\\Current\\Bin\\MSBuild.exe',
+gyp sill find VS toolset: null,
+gyp sill find VS sdk: '10.0.26100.0'
+gyp sill find VS }
+gyp sill find VS ]
+gyp verb find VS unknown version "undefined" found at "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools"
+gyp verb find VS could not find a version of Visual Studio 2017 or newer to use
+gyp verb find VS not looking for VS2017 as it is only supported up to Node.js 21
+gyp verb find VS not looking for VS2017 as it is only supported up to Node.js 21
+gyp verb find VS not looking for VS2017 as it is only supported up to Node.js 21
+gyp verb find VS not looking for VS2015 as it is only supported up to Node.js 18
+gyp verb find VS not looking for VS2013 as it is only supported up to Node.js 8
+gyp ERR! find VS
+gyp ERR! find VS msvs_version not set from command line or npm config
+gyp ERR! find VS VCINSTALLDIR not set, not running in VS Command Prompt
+gyp ERR! find VS could not use PowerShell to find Visual Studio 2017 or newer, try re-running with '--loglevel silly' for more details.
+gyp ERR! find VS
+gyp ERR! find VS Failure details: undefined
+gyp ERR! find VS unknown version "undefined" found at "C:\Program Files (x86)\Microsoft Visual Studio\18\BuildTools"
+gyp ERR! find VS could not find a version of Visual Studio 2017 or newer to use
+gyp ERR! find VS not looking for VS2017 as it is only supported up to Node.js 21
+gyp ERR! find VS not looking for VS2017 as it is only supported up to Node.js 21
+gyp ERR! find VS not looking for VS2017 as it is only supported up to Node.js 21
+gyp ERR! find VS not looking for VS2015 as it is only supported up to Node.js 18
+gyp ERR! find VS not looking for VS2013 as it is only supported up to Node.js 8
+gyp ERR! find VS
+gyp ERR! find VS **************************************************************
+gyp ERR! find VS You need to install the latest version of Visual Studio
+gyp ERR! find VS including the "Desktop development with C++" workload.
+gyp ERR! find VS For more information consult the documentation at:
+gyp ERR! find VS https://github.com/nodejs/node-gyp#on-windows
+gyp ERR! find VS **************************************************************
+gyp ERR! find VS
+Error: Could not find any Visual Studio installation to use
+    at VisualStudioFinder.fail (C:\Users\jgarr\AppData\Local\npm-cache\_npx\0d53a011b5de36d4\node_modules\@electron\node-gyp\lib\find-visualstudio.js:118:11)
+    at VisualStudioFinder.findVisualStudio (C:\Users\jgarr\AppData\Local\npm-cache\_npx\0d53a011b5de36d4\node_modules\@electron\node-gyp\lib\find-visualstudio.js:74:17)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async createBuildDir (C:\Users\jgarr\AppData\Local\npm-cache\_npx\0d53a011b5de36d4\node_modules\@electron\node-gyp\lib\configure.js:112:18)
+    at async process.<anonymous> (C:\Users\jgarr\AppData\Local\npm-cache\_npx\0d53a011b5de36d4\node_modules\@electron\rebuild\lib\module-type\node-gyp\worker.js:27:13)
+
+× Rebuild Failed
+
+An unhandled error occurred inside electron-rebuild
+node-gyp failed to rebuild 'C:\DJ-Clip-Finder\node_modules\bufferutil'
+
+Error: node-gyp failed to rebuild 'C:\DJ-Clip-Finder\node_modules\bufferutil'
+    at ChildProcess.<anonymous> (C:\Users\jgarr\AppData\Local\npm-cache\_npx\0d53a011b5de36d4\node_modules\@electron\rebuild\lib\module-type\node-gyp\node-gyp.js:121:24)
+    at ChildProcess.emit (node:events:508:28)
+    at ChildProcess._handle.onexit (node:internal/child_process:294:12)
+⚠  Could not rebuild better-sqlite3. The app may fail to start.
+   Install Visual Studio Build Tools if the error persists.
+
+✔  FFmpeg staged → dist/electron/ffmpeg/
+
+▶  Packaging installer (electron-builder)…
+  • electron-builder  version=26.8.1 os=10.0.26200
+  • loaded configuration  file=C:\DJ-Clip-Finder\electron-builder.yml
+  • description is missed in the package.json  appPackageFile=C:\DJ-Clip-Finder\package.json
+  • author is missed in the package.json  appPackageFile=C:\DJ-Clip-Finder\package.json
+  • writing effective config  file=release\builder-effective-config.yaml
+  • skipped dependencies rebuild  reason=npmRebuild is set to false
+  • packaging       platform=win32 arch=x64 electron=41.0.3 appOutDir=release\win-unpacked
+  • searching for node modules  pm=npm searchDir=C:\DJ-Clip-Finder
+(node:22888) [DEP0190] DeprecationWarning: Passing args to a child process with shell option true can lead to security vulnerabilities, as the arguments are not escaped, only concatenated.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+  • duplicate dependency references  dependencies=["@radix-ui/react-collapsible@1.1.4","@radix-ui/react-primitive@2.0.3","@radix-ui/react-slot@1.2.0","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@types/react@18.3.12","react@18.3.1","@types/react@18.3.12","react@18.3.1","@types/react@18.3.12","react@18.3.1","@types/react@18.3.12","react@18.3.1","@radix-ui/react-slot@1.2.0","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@types/react@18.3.12","react@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-dialog@1.1.7","@radix-ui/react-primitive@2.0.3","@radix-ui/react-slot@1.2.0","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-primitive@2.0.3","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-primitive@2.0.3","@types/react@18.3.12","react@18.3.1","@types/react@18.3.12","react@18.3.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-primitive@2.0.3","@radix-ui/react-use-controllable-state@1.1.1","@types/react@18.3.12","react@18.3.1","@types/react@18.3.12","react@18.3.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-id@1.1.1","@radix-ui/react-presence@1.1.3","@radix-ui/react-primitive@2.0.3","@radix-ui/react-use-controllable-state@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-collection@1.1.3","@radix-ui/react-dismissable-layer@1.1.6","@radix-ui/react-focus-scope@1.1.3","@radix-ui/react-id@1.1.1","@radix-ui/react-popper@1.2.3","@radix-ui/react-portal@1.1.5","@radix-ui/react-presence@1.1.3","@radix-ui/react-primitive@2.0.3","@radix-ui/react-roving-focus@1.1.3","@radix-ui/react-slot@1.2.0","@types/react-dom@18.3.1","@types/react@18.3.12","aria-hidden@1.2.4","react-dom@18.3.1","react-remove-scroll@2.6.3","react@18.3.1","@radix-ui/react-primitive@2.0.3","@radix-ui/react-use-controllable-state@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-primitive@2.0.3","@types/react@18.3.12","react@18.3.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@types/react@18.3.12","react@18.3.1","@radix-ui/react-primitive@2.0.3","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-id@1.1.1","@radix-ui/react-primitive@2.0.3","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-presence@1.1.3","@radix-ui/react-primitive@2.0.3","@radix-ui/react-slot@1.2.0","@radix-ui/react-use-controllable-state@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","@types/react@18.3.12","@types/react@18.3.12","react-style-singleton@2.2.3","react@18.3.1","@types/react@18.3.12","react@18.3.1","react@18.3.1","@types/react@18.3.12","react@18.3.1","@types/react@18.3.12","react@18.3.1","react@18.3.1","@radix-ui/react-id@1.1.1","@radix-ui/react-menu@2.1.7","@radix-ui/react-primitive@2.0.3","@radix-ui/react-use-controllable-state@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-dismissable-layer@1.1.6","react-dom@18.3.1","react@18.3.1","@radix-ui/react-primitive@2.0.3","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-primitive@2.0.3","@types/react@18.3.12","react@18.3.1","@radix-ui/react-use-size@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-portal@1.1.5","@radix-ui/react-presence@1.1.3","@radix-ui/react-primitive@2.0.3","@radix-ui/react-use-controllable-state@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-primitive@2.0.3","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-collection@1.1.3","@radix-ui/react-id@1.1.1","@radix-ui/react-menu@2.1.7","@radix-ui/react-primitive@2.0.3","@radix-ui/react-collection@1.1.3","@radix-ui/react-id@1.1.1","@radix-ui/react-primitive@2.0.3","@radix-ui/react-use-controllable-state@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-use-controllable-state@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-collection@1.1.3","@radix-ui/react-dismissable-layer@1.1.6","@radix-ui/react-id@1.1.1","@radix-ui/react-presence@1.1.3","@radix-ui/react-primitive@2.0.3","@radix-ui/react-use-controllable-state@1.1.1","@radix-ui/react-primitive@2.0.3","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-dismissable-layer@1.1.6","@radix-ui/react-focus-scope@1.1.3","@radix-ui/react-id@1.1.1","@radix-ui/react-popper@1.2.3","@radix-ui/react-portal@1.1.5","@radix-ui/react-presence@1.1.3","@radix-ui/react-primitive@2.0.3","@radix-ui/react-slot@1.2.0","@radix-ui/react-use-controllable-state@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","aria-hidden@1.2.4","react-dom@18.3.1","react-remove-scroll@2.6.3","react@18.3.1","@radix-ui/react-primitive@2.0.3","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-presence@1.1.3","@radix-ui/react-primitive@2.0.3","@radix-ui/react-roving-focus@1.1.3","@radix-ui/react-use-controllable-state@1.1.1","@radix-ui/react-use-size@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-presence@1.1.3","@radix-ui/react-primitive@2.0.3","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-collection@1.1.3","@radix-ui/react-dismissable-layer@1.1.6","@radix-ui/react-focus-scope@1.1.3","@radix-ui/react-id@1.1.1","@radix-ui/react-popper@1.2.3","@radix-ui/react-portal@1.1.5","@radix-ui/react-primitive@2.0.3","@radix-ui/react-slot@1.2.0","@radix-ui/react-use-controllable-state@1.1.1","@radix-ui/react-visually-hidden@1.1.3","@types/react-dom@18.3.1","@types/react@18.3.12","aria-hidden@1.2.4","react-dom@18.3.1","react-remove-scroll@2.6.3","react@18.3.1","@radix-ui/react-primitive@2.0.3","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-collection@1.1.3","@radix-ui/react-primitive@2.0.3","@radix-ui/react-use-controllable-state@1.1.1","@radix-ui/react-use-size@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@types/react@18.3.12","react@18.3.1","@radix-ui/react-primitive@2.0.3","@radix-ui/react-use-controllable-state@1.1.1","@radix-ui/react-use-size@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-id@1.1.1","@radix-ui/react-presence@1.1.3","@radix-ui/react-primitive@2.0.3","@radix-ui/react-roving-focus@1.1.3","@radix-ui/react-use-controllable-state@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-collection@1.1.3","@radix-ui/react-dismissable-layer@1.1.6","@radix-ui/react-portal@1.1.5","@radix-ui/react-presence@1.1.3","@radix-ui/react-primitive@2.0.3","@radix-ui/react-use-controllable-state@1.1.1","@radix-ui/react-visually-hidden@1.1.3","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-primitive@2.0.3","@radix-ui/react-roving-focus@1.1.3","@radix-ui/react-toggle@1.1.3","@radix-ui/react-use-controllable-state@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-primitive@2.0.3","@radix-ui/react-use-controllable-state@1.1.1","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@radix-ui/react-dismissable-layer@1.1.6","@radix-ui/react-id@1.1.1","@radix-ui/react-popper@1.2.3","@radix-ui/react-portal@1.1.5","@radix-ui/react-presence@1.1.3","@radix-ui/react-primitive@2.0.3","@radix-ui/react-slot@1.2.0","@radix-ui/react-use-controllable-state@1.1.1","@radix-ui/react-visually-hidden@1.1.3","@types/react-dom@18.3.1","@types/react@18.3.12","react-dom@18.3.1","react@18.3.1","@types/node@20.19.27","react@18.3.1","@types/node@20.19.27","@types/node@20.19.27","@types/node@20.19.27","@types/node@20.19.27","@types/node@20.19.27","once@1.4.0","once@1.4.0","once@1.4.0","pump@3.0.4","readable-stream@3.6.2","end-of-stream@1.4.5","readable-stream@3.6.2","@radix-ui/react-dialog@1.1.7","@radix-ui/react-id@1.1.1","@radix-ui/react-primitive@2.0.3","react-dom@18.3.1","react@18.3.1","pg@8.16.3","@types/better-sqlite3@7.6.13","@types/node@20.19.27","better-sqlite3@12.8.0","pg@8.16.3","debug@4.3.7","react@18.3.1","mime-types@3.0.2","http-errors@2.0.1","on-finished@2.4.1","qs@6.14.1","http-errors@2.0.1","iconv-lite@0.7.2","type-is@2.0.1","on-finished@2.4.1","get-intrinsic@1.3.0","call-bind-apply-helpers@1.0.2","call-bind-apply-helpers@1.0.2","es-object-atoms@1.1.1","hasown@2.0.2","call-bound@1.0.4","get-intrinsic@1.3.0","side-channel-map@1.0.1","http-errors@2.0.1","mime-types@3.0.2","on-finished@2.4.1","send@1.2.1","mime-types@3.0.2","react-dom@18.3.1","react@18.3.1","react-dom@18.3.1","react@18.3.1","react@18.3.1","react-dom@18.3.1","react@18.3.1","pg@8.16.3","react@18.3.1","react@18.3.1","loose-envify@1.4.0","react@18.3.1","react@18.3.1","react-dom@18.3.1","react@18.3.1","loose-envify@1.4.0","react-dom@18.3.1","loose-envify@1.4.0","react-dom@18.3.1","@babel/runtime@7.27.0","loose-envify@1.4.0","prop-types@15.8.1","react-dom@18.3.1","react@18.3.1","react@18.3.1","react@18.3.1","d3-array@3.2.4","d3-interpolate@3.0.1","d3-time@3.1.0","d3-time@3.1.0","d3-array@3.2.4","is-glob@4.0.3","is-glob@4.0.3","is-glob@4.0.3","micromatch@4.0.8","is-glob@4.0.3","braces@3.0.3","postcss@8.5.6","resolve@1.22.8","postcss@8.5.6","postcss@8.5.6","postcss-selector-parser@6.1.2","postcss@8.5.6","@jridgewell/trace-mapping@0.3.31","strip-ansi@7.1.0","strip-ansi@6.0.1","string-width@5.1.2","strip-ansi@7.1.0","@radix-ui/react-dialog@1.1.7","react-dom@18.3.1","react@18.3.1","react@18.3.1","react@18.3.1","bufferutil@4.1.0"]
+  • updating asar integrity executable resource  executablePath=release\win-unpacked\DJ Clip Studio.exe
+  • building        target=nsis file=release\DJ Clip Studio Setup 1.0.0.exe archs=x64 oneClick=false perMachine=false
+  • signing with signtool.exe  path=release\DJ Clip Studio Setup 1.0.0.__uninstaller.exe
+  • signing with signtool.exe  path=release\DJ Clip Studio Setup 1.0.0.exe
+  • building block map  blockMapFile=release\DJ Clip Studio Setup 1.0.0.exe.blockmap
+
+✅ Done! Check the release/ folder for the installer .exe
+
+To publish a release:
+  1. Commit and push code to GitHub
+  2. Create a GitHub release at https://github.com/joddizgaren/dj-clip-finder/releases/new
+  3. Upload the .exe from release/ as a release asset
+  4. Published! Installed apps will auto-detect and offer the update.

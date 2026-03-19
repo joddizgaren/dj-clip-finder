@@ -20,11 +20,11 @@ import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, mkdir, copyFile, readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
-import { execSync } from "child_process";
 import path from "path";
 
-// Packages that cannot be bundled (native addons, Electron itself)
-const ALWAYS_EXTERNAL = ["electron", "better-sqlite3"];
+// Packages that cannot be bundled — Electron itself and any native addons.
+// node:sqlite is a built-in Node.js module and needs no entry here.
+const ALWAYS_EXTERNAL = ["electron"];
 
 async function getAllPackageNames(): Promise<string[]> {
   const pkg = JSON.parse(await readFile("package.json", "utf-8"));
@@ -105,7 +105,7 @@ async function buildAll() {
   console.log("▶  Bundling server…");
   const allPkgs = await getAllPackageNames();
   // Keep all dependencies external — electron-builder will include node_modules.
-  // Only better-sqlite3 is "truly" external because it's a native addon.
+  // node:sqlite is a built-in and needs no entry in externals.
   const serverExternals = [...new Set([...ALWAYS_EXTERNAL, ...allPkgs])];
 
   await esbuild({
@@ -140,25 +140,7 @@ async function buildAll() {
   await copyFile("electron/preload.js", "dist/electron/preload.js");
   console.log("✔  Preload → dist/electron/preload.js\n");
 
-  // ── 5b. Rebuild better-sqlite3 for Electron's Node.js ABI ────────────────
-  // The native .node file in node_modules/better-sqlite3 was compiled for the
-  // system Node.js. Electron embeds its own Node.js with a different ABI, so
-  // the module must be rebuilt or the server process will crash on launch.
-  console.log("▶  Rebuilding better-sqlite3 for Electron runtime…");
-  try {
-    execSync("npx --yes @electron/rebuild@3 -f -w better-sqlite3", {
-      stdio: "inherit",
-      cwd: process.cwd(),
-    });
-    console.log("✔  better-sqlite3 rebuilt for Electron\n");
-  } catch {
-    console.warn(
-      "⚠  Could not rebuild better-sqlite3. The app may fail to start.\n" +
-      "   Install Visual Studio Build Tools if the error persists.\n"
-    );
-  }
-
-  // ── 5c. Stage FFmpeg into dist/ (avoids antivirus locking source files) ──
+  // ── 5b. Stage FFmpeg into dist/ (avoids antivirus locking source files) ──
   // electron-builder will read from dist/electron/ffmpeg/ rather than
   // electron/ffmpeg/ directly, preventing EBUSY errors on the source binaries.
   if (existsSync("electron/ffmpeg/ffmpeg.exe")) {
@@ -199,7 +181,6 @@ async function buildAll() {
       "dist/electron/public/**/*",
       "package.json",
     ],
-    asarUnpack: ["node_modules/better-sqlite3/**/*"],
     win: {
       icon: existsSync("electron/build-resources/icon.ico")
         ? "electron/build-resources/icon.ico"
@@ -215,7 +196,8 @@ async function buildAll() {
     },
     nsis: {
       oneClick: false,
-      perMachine: false,
+      perMachine: true,
+      allowElevation: true,
       allowToChangeInstallationDirectory: true,
       createDesktopShortcut: true,
       createStartMenuShortcut: true,

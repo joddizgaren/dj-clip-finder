@@ -58,6 +58,9 @@ function startServer(): void {
   }
 
   serverProcess = utilityProcess.fork(serverPath, [], {
+    // --experimental-sqlite enables the built-in node:sqlite module on Node.js 22.x.
+    // On Node.js 23+ (where sqlite is stable) this flag is silently accepted.
+    execArgv: ["--experimental-sqlite"],
     env: {
       ...process.env,
       ELECTRON_APP: "true",

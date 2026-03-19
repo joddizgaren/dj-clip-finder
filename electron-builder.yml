@@ -18,18 +18,14 @@ files:
   - package.json
 
 # Files copied to resources/ alongside the ASAR (accessible via process.resourcesPath)
-# These are NOT inside the ASAR so native modules and large binaries work correctly.
+# These are NOT inside the ASAR so large binaries work correctly.
+# node:sqlite is used for the database (built into Electron's Node.js runtime),
+# so no native addon needs to be bundled here.
 extraResources:
   - from: dist/electron/server.cjs
     to: server.cjs
-  - from: node_modules/better-sqlite3
-    to: node_modules/better-sqlite3
   - from: dist/electron/ffmpeg
     to: ffmpeg
-
-# better-sqlite3 contains a native .node file — unpack it from the ASAR
-asarUnpack:
-  - "node_modules/better-sqlite3/**/*"
 
 # ─── Windows ─────────────────────────────────────────────────────────────────
 win:

@@ -2,14 +2,21 @@ import { randomUUID } from "crypto";
 import type { IStorage } from "./storage";
 import type { Upload, Clip, InsertUpload, InsertClip } from "@shared/schema";
 
-// Lazily initialized — set by initSQLite() before any storage calls
-let sqlite: import("better-sqlite3").Database;
+// node:sqlite is a built-in module available in Node.js 22.5+ (Electron 41+).
+// Enable it by passing --experimental-sqlite to the utility process (Node 22.x).
+// @types/node v20 doesn't include these types; cast via any at the call site.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let sqlite: any;
 
 export function initSQLite(dbPath: string) {
-  const Database = require("better-sqlite3") as typeof import("better-sqlite3");
-  sqlite = new Database(dbPath);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
+  // require("node:sqlite") works at Electron 41 runtime with --experimental-sqlite.
+  // We cast to any because @types/node v20 predates the sqlite built-in.
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const { DatabaseSync } = require("node:sqlite") as any;
+  sqlite = new DatabaseSync(dbPath);
+
+  sqlite.exec("PRAGMA journal_mode = WAL");
+  sqlite.exec("PRAGMA foreign_keys = ON");
 
   sqlite.exec(`
     CREATE TABLE IF NOT EXISTS uploads (
@@ -47,9 +54,9 @@ function rowToUpload(row: any): Upload {
     id: row.id,
     filename: row.filename,
     filePath: row.file_path,
-    duration: row.duration,
-    videoWidth: row.video_width ?? null,
-    videoHeight: row.video_height ?? null,
+    duration: Number(row.duration),
+    videoWidth: row.video_width != null ? Number(row.video_width) : null,
+    videoHeight: row.video_height != null ? Number(row.video_height) : null,
     status: row.status as Upload["status"],
     error: row.error ?? null,
     peaksCache: row.peaks_cache ? JSON.parse(row.peaks_cache) : null,
@@ -61,13 +68,13 @@ function rowToClip(row: any): Clip {
   return {
     id: row.id,
     uploadId: row.upload_id,
-    startTime: row.start_time,
-    endTime: row.end_time,
-    duration: row.duration,
-    peakTime: row.peak_time ?? 0,
+    startTime: Number(row.start_time),
+    endTime: Number(row.end_time),
+    duration: Number(row.duration),
+    peakTime: row.peak_time != null ? Number(row.peak_time) : 0,
     clipPath: row.clip_path,
     highlightType: row.highlight_type,
-    energyLevel: row.energy_level,
+    energyLevel: Number(row.energy_level),
     outputFormat: row.output_format ?? "original",
     buildUp: row.build_up ?? "short",
     createdAt: row.created_at ? new Date(row.created_at) : new Date(),
