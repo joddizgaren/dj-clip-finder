@@ -39,9 +39,18 @@ win:
       arch:
         - x64
 
+# Register djclipstudio:// as a Windows URL protocol so password-recovery
+# email links open the app instead of a browser.
+protocols:
+  name: DJ Clip Studio
+  schemes:
+    - djclipstudio
+
 nsis:
   oneClick: false
-  perMachine: false
+  # perMachine installs to C:\Program Files\ and requires UAC elevation.
+  perMachine: true
+  allowElevation: true
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   createStartMenuShortcut: true

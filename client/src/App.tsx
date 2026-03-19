@@ -117,6 +117,9 @@ function AuthGate() {
   const [authState, setAuthState] = useState<AuthState>(
     isElectron() ? "checking" : "authenticated"
   );
+  // Holds a djclipstudio:// deep-link URL when the app is opened via one
+  // (e.g. a Supabase password-recovery email link).
+  const [recoveryUrl, setRecoveryUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isElectron() || !supabase) {
@@ -133,6 +136,17 @@ function AuthGate() {
         supabase!.auth.signOut().finally(() => setAuthState("unauthenticated"));
       }
     });
+  }, []);
+
+  // Listen for deep links from the main process (password recovery flow).
+  useEffect(() => {
+    if (!isElectron() || !window.electronAPI?.onDeepLink) return;
+    const unsub = window.electronAPI.onDeepLink((url) => {
+      // Any deep link takes us to the login page in recovery mode.
+      setAuthState("unauthenticated");
+      setRecoveryUrl(url);
+    });
+    return unsub;
   }, []);
 
   async function handleSignOut() {
@@ -171,7 +185,16 @@ function AuthGate() {
   }
 
   if (authState === "unauthenticated") {
-    return <LoginPage onLoginSuccess={() => setAuthState("authenticated")} />;
+    return (
+      <LoginPage
+        onLoginSuccess={() => {
+          setRecoveryUrl(null);
+          setAuthState("authenticated");
+        }}
+        recoveryUrl={recoveryUrl ?? undefined}
+        onRecoveryHandled={() => setRecoveryUrl(null)}
+      />
+    );
   }
 
   return <AppShell onSignOut={handleSignOut} />;

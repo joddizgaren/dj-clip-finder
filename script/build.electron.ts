@@ -20,6 +20,7 @@ import { build as esbuild } from "esbuild";
 import { build as viteBuild } from "vite";
 import { rm, mkdir, copyFile, readFile, writeFile } from "fs/promises";
 import { existsSync } from "fs";
+import { execSync } from "child_process";
 import path from "path";
 
 // Packages that cannot be bundled (native addons, Electron itself)
@@ -139,7 +140,25 @@ async function buildAll() {
   await copyFile("electron/preload.js", "dist/electron/preload.js");
   console.log("✔  Preload → dist/electron/preload.js\n");
 
-  // ── 5b. Stage FFmpeg into dist/ (avoids antivirus locking source files) ──
+  // ── 5b. Rebuild better-sqlite3 for Electron's Node.js ABI ────────────────
+  // The native .node file in node_modules/better-sqlite3 was compiled for the
+  // system Node.js. Electron embeds its own Node.js with a different ABI, so
+  // the module must be rebuilt or the server process will crash on launch.
+  console.log("▶  Rebuilding better-sqlite3 for Electron runtime…");
+  try {
+    execSync("npx --yes @electron/rebuild@3 -f -w better-sqlite3", {
+      stdio: "inherit",
+      cwd: process.cwd(),
+    });
+    console.log("✔  better-sqlite3 rebuilt for Electron\n");
+  } catch {
+    console.warn(
+      "⚠  Could not rebuild better-sqlite3. The app may fail to start.\n" +
+      "   Install Visual Studio Build Tools if the error persists.\n"
+    );
+  }
+
+  // ── 5c. Stage FFmpeg into dist/ (avoids antivirus locking source files) ──
   // electron-builder will read from dist/electron/ffmpeg/ rather than
   // electron/ffmpeg/ directly, preventing EBUSY errors on the source binaries.
   if (existsSync("electron/ffmpeg/ffmpeg.exe")) {

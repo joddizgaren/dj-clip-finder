@@ -8,6 +8,7 @@ import * as net from "net";
 declare const __dirname: string;
 
 const PORT = 5001;
+const PROTOCOL = "djclipstudio";
 
 let mainWindow: BrowserWindow | null = null;
 let serverProcess: ReturnType<typeof utilityProcess.fork> | null = null;
@@ -130,6 +131,19 @@ async function createWindow(): Promise<void> {
   await mainWindow.loadURL(`http://localhost:${PORT}`);
 }
 
+// ─── Deep link helper ─────────────────────────────────────────────────────────
+
+function sendDeepLink(url: string): void {
+  if (!mainWindow) return;
+  if (mainWindow.webContents.isLoading()) {
+    mainWindow.webContents.once("did-finish-load", () =>
+      mainWindow?.webContents.send("deep-link", url)
+    );
+  } else {
+    mainWindow.webContents.send("deep-link", url);
+  }
+}
+
 // ─── Auto-updater ────────────────────────────────────────────────────────────
 
 function setupAutoUpdater(): void {
@@ -150,7 +164,6 @@ function setupAutoUpdater(): void {
     console.warn("[updater]", err.message);
   });
 
-  // Check silently 10s after launch — doesn't delay startup
   setTimeout(
     () => autoUpdater.checkForUpdatesAndNotify().catch(() => {}),
     10_000
@@ -159,33 +172,66 @@ function setupAutoUpdater(): void {
 
 ipcMain.on("install-update", () => autoUpdater.quitAndInstall());
 
-// ─── App lifecycle ────────────────────────────────────────────────────────────
+// ─── Single-instance lock ─────────────────────────────────────────────────────
+// Ensures only one instance of the app runs. If a second instance is started
+// (e.g. by clicking a djclipstudio:// link when the app is already open),
+// we bring the existing window to the front and pass the deep-link URL to it.
 
-app.whenReady().then(async () => {
-  startServer();
+const gotLock = app.requestSingleInstanceLock();
 
-  try {
-    await waitForServer();
-  } catch (err) {
-    dialog.showErrorBox("Startup failed", String(err));
-    app.quit();
-    return;
-  }
+if (!gotLock) {
+  // Another instance is already running — hand off and exit.
+  app.quit();
+} else {
+  app.on("second-instance", (_event, argv) => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+    const deepLink = argv.find((arg) => arg.startsWith(`${PROTOCOL}://`));
+    if (deepLink) sendDeepLink(deepLink);
+  });
 
-  await createWindow();
+  // ─── App lifecycle ──────────────────────────────────────────────────────────
 
-  if (app.isPackaged) setupAutoUpdater();
-});
+  app.whenReady().then(async () => {
+    // Register the custom URL protocol (belt-and-suspenders alongside the
+    // registry entries that electron-builder writes during install).
+    app.setAsDefaultProtocolClient(PROTOCOL);
 
-app.on("window-all-closed", () => {
-  serverProcess?.kill();
-  if (process.platform !== "darwin") app.quit();
-});
+    // If the app was launched cold by clicking a djclipstudio:// link,
+    // the URL appears as a command-line argument.
+    const coldDeepLink = process.argv.find((arg) =>
+      arg.startsWith(`${PROTOCOL}://`)
+    );
 
-app.on("before-quit", () => {
-  serverProcess?.kill();
-});
+    startServer();
 
-app.on("activate", async () => {
-  if (BrowserWindow.getAllWindows().length === 0) await createWindow();
-});
+    try {
+      await waitForServer();
+    } catch (err) {
+      dialog.showErrorBox("Startup failed", String(err));
+      app.quit();
+      return;
+    }
+
+    await createWindow();
+
+    if (coldDeepLink) sendDeepLink(coldDeepLink);
+
+    if (app.isPackaged) setupAutoUpdater();
+  });
+
+  app.on("window-all-closed", () => {
+    serverProcess?.kill();
+    if (process.platform !== "darwin") app.quit();
+  });
+
+  app.on("before-quit", () => {
+    serverProcess?.kill();
+  });
+
+  app.on("activate", async () => {
+    if (BrowserWindow.getAllWindows().length === 0) await createWindow();
+  });
+}
