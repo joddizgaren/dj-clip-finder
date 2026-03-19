@@ -167,51 +167,77 @@ async function buildAll() {
 
   console.log("▶  Packaging installer (electron-builder)…");
   const { build: electronBuild } = await import("electron-builder");
-  try {
-  await electronBuild({
-    config: {
-      appId: "com.joddizgaren.djclipstudio",
-      productName: "DJ Clip Studio",
-      npmRebuild: false,
-      directories: { output: "release", buildResources: "electron/build-resources" },
-      extraMetadata: { main: "dist/electron/main.cjs" },
-      files: [
-        "dist/electron/main.cjs",
-        "dist/electron/preload.js",
-        "dist/electron/public/**/*",
-        "package.json",
-      ],
-      extraResources: [
-        { from: "dist/electron/server.cjs", to: "server.cjs" },
-        { from: "node_modules/better-sqlite3", to: "node_modules/better-sqlite3" },
-        ...(existsSync("dist/electron/ffmpeg/ffmpeg.exe")
-          ? [{ from: "dist/electron/ffmpeg", to: "ffmpeg" }]
-          : []),
-      ],
-      asarUnpack: ["node_modules/better-sqlite3/**/*"],
-      win: {
-        icon: existsSync("electron/build-resources/icon.ico")
-          ? "electron/build-resources/icon.ico"
-          : undefined,
-        target: [{ target: "nsis", arch: ["x64"] }],
-      },
-      nsis: {
-        oneClick: false,
-        perMachine: false,
-        allowToChangeInstallationDirectory: true,
-        createDesktopShortcut: true,
-        createStartMenuShortcut: true,
-        shortcutName: "DJ Clip Studio",
-        deleteAppDataOnUninstall: false,
-      },
-      publish: {
-        provider: "github",
-        owner: "joddizgaren",
-        repo: "dj-clip-finder",
-        releaseType: "release",
-      },
+
+  const ebConfig = {
+    appId: "com.joddizgaren.djclipstudio",
+    productName: "DJ Clip Studio",
+    npmRebuild: false,
+    directories: { output: "release", buildResources: "electron/build-resources" },
+    extraMetadata: { main: "dist/electron/main.cjs" },
+    files: [
+      "dist/electron/main.cjs",
+      "dist/electron/preload.js",
+      "dist/electron/public/**/*",
+      "package.json",
+    ],
+    extraResources: [
+      { from: "dist/electron/server.cjs", to: "server.cjs" },
+      { from: "node_modules/better-sqlite3", to: "node_modules/better-sqlite3" },
+      ...(existsSync("dist/electron/ffmpeg/ffmpeg.exe")
+        ? [{ from: "dist/electron/ffmpeg", to: "ffmpeg" }]
+        : []),
+    ],
+    asarUnpack: ["node_modules/better-sqlite3/**/*"],
+    win: {
+      icon: existsSync("electron/build-resources/icon.ico")
+        ? "electron/build-resources/icon.ico"
+        : undefined,
+      target: [{ target: "nsis", arch: ["x64"] }],
     },
-  });
+    nsis: {
+      oneClick: false,
+      perMachine: false,
+      allowToChangeInstallationDirectory: true,
+      createDesktopShortcut: true,
+      createStartMenuShortcut: true,
+      shortcutName: "DJ Clip Studio",
+      deleteAppDataOnUninstall: false,
+    },
+    publish: {
+      provider: "github",
+      owner: "joddizgaren",
+      repo: "dj-clip-finder",
+      releaseType: "release",
+    },
+  };
+
+  // Retry up to 3 times on EBUSY — antivirus scanners briefly lock newly
+  // created .exe files on Windows but release them within a few seconds.
+  const MAX_ATTEMPTS = 3;
+  let lastError: Error | null = null;
+  try {
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        if (attempt > 1) {
+          console.log(`\n  Cleaning release/ before retry…`);
+          await rm("release", { recursive: true, force: true });
+        }
+        await electronBuild({ config: ebConfig });
+        lastError = null;
+        break;
+      } catch (err: unknown) {
+        lastError = err instanceof Error ? err : new Error(String(err));
+        if (lastError.message.includes("EBUSY") && attempt < MAX_ATTEMPTS) {
+          console.log(
+            `\n  ⚠  File locked by antivirus (attempt ${attempt}/${MAX_ATTEMPTS}).` +
+            `  Waiting 8s for scanner to release it…`
+          );
+          await new Promise((r) => setTimeout(r, 8000));
+        } else {
+          throw lastError;
+        }
+      }
+    }
   } finally {
     // Always restore the original package.json
     await writeFile("package.json", pkgRaw);
