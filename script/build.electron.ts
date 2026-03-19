@@ -139,6 +139,16 @@ async function buildAll() {
   await copyFile("electron/preload.js", "dist/electron/preload.js");
   console.log("✔  Preload → dist/electron/preload.js\n");
 
+  // ── 5b. Stage FFmpeg into dist/ (avoids antivirus locking source files) ──
+  // electron-builder will read from dist/electron/ffmpeg/ rather than
+  // electron/ffmpeg/ directly, preventing EBUSY errors on the source binaries.
+  if (existsSync("electron/ffmpeg/ffmpeg.exe")) {
+    await mkdir("dist/electron/ffmpeg", { recursive: true });
+    await copyFile("electron/ffmpeg/ffmpeg.exe",   "dist/electron/ffmpeg/ffmpeg.exe");
+    await copyFile("electron/ffmpeg/ffprobe.exe",  "dist/electron/ffmpeg/ffprobe.exe");
+    console.log("✔  FFmpeg staged → dist/electron/ffmpeg/\n");
+  }
+
   // ── 6. Run electron-builder ───────────────────────────────────────────────
   // electron-builder requires "electron" and "electron-builder" to be in
   // devDependencies. In Replit they live in dependencies. Temporarily swap them,
@@ -174,8 +184,8 @@ async function buildAll() {
       extraResources: [
         { from: "dist/electron/server.cjs", to: "server.cjs" },
         { from: "node_modules/better-sqlite3", to: "node_modules/better-sqlite3" },
-        ...(existsSync("electron/ffmpeg/ffmpeg.exe")
-          ? [{ from: "electron/ffmpeg", to: "ffmpeg" }]
+        ...(existsSync("dist/electron/ffmpeg/ffmpeg.exe")
+          ? [{ from: "dist/electron/ffmpeg", to: "ffmpeg" }]
           : []),
       ],
       asarUnpack: ["node_modules/better-sqlite3/**/*"],
