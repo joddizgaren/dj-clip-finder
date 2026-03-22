@@ -405,7 +405,7 @@ function ClipCard({
           {clip.buildUp && clip.buildUp !== "none" && (
             <span className="flex items-center gap-1 bg-muted/50 rounded px-1.5 py-0.5 capitalize">
               <span className="font-medium text-foreground/60">↑</span>
-              {clip.buildUp === "auto" ? "DJ build-up" : `${clip.buildUp} build-up`}
+              {clip.buildUp === "auto" ? "DJ lead-up" : `${clip.buildUp} lead-up`}
             </span>
           )}
           {clip.outputFormat && clip.outputFormat !== "original" ? (
@@ -548,7 +548,7 @@ function ClipCard({
 
             {/* Build-up */}
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Build-up before the drop</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Lead-up to peak</p>
               <div className="flex gap-1.5 flex-wrap">
                 {([
                   { value: "none",   label: "None" },
@@ -1086,7 +1086,7 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
 
             {/* Build-up */}
             <div>
-              <p className="text-xs font-medium text-muted-foreground mb-2">Build-up before the drop</p>
+              <p className="text-xs font-medium text-muted-foreground mb-2">Lead-up to peak</p>
               <div className="flex gap-1.5 flex-wrap">
                 {([
                   { value: "none",   label: "None" },
@@ -1108,11 +1108,11 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
                 ))}
               </div>
               <p className="text-xs text-muted-foreground/70 mt-1.5">
-                {buildUp === "none"   && "Clip starts at the drop. No build-up included."}
-                {buildUp === "short"  && "~20% of clip is build-up before the drop."}
-                {buildUp === "medium" && "~40% of clip is build-up before the drop."}
-                {buildUp === "long"   && "~65% of clip is build-up before the drop."}
-                {buildUp === "auto"   && "Automatically longer build-up for stronger peaks, shorter for the rest."}
+                {buildUp === "none"   && "Clip starts right at the peak. No lead-up included."}
+                {buildUp === "short"  && "~20% of clip leads up to the peak."}
+                {buildUp === "medium" && "~40% of clip leads up to the peak."}
+                {buildUp === "long"   && "~65% of clip leads up to the peak."}
+                {buildUp === "auto"   && "Automatically longer lead-up for stronger peaks, shorter for the rest."}
               </p>
             </div>
 
@@ -1395,7 +1395,7 @@ function UploadCard({ upload, onDelete }: { upload: Upload; onDelete: (id: strin
               <div className="text-xs text-muted-foreground bg-muted/40 rounded-md px-3 py-2 flex flex-wrap gap-x-4 gap-y-1">
                 <span><span className="font-medium text-foreground/70">Duration:</span> {lastSettings.durations.join(", ")}s</span>
                 <span><span className="font-medium text-foreground/70">Max clips:</span> {lastSettings.maxClips > 0 ? lastSettings.maxClips : "all"}</span>
-                <span><span className="font-medium text-foreground/70">Build-up:</span> {lastSettings.buildUp === "auto" ? "DJ Choice" : lastSettings.buildUp}</span>
+                <span><span className="font-medium text-foreground/70">Lead-up:</span> {lastSettings.buildUp === "auto" ? "DJ Choice" : lastSettings.buildUp}</span>
                 {lastSettings.outputFormat !== "original" && (
                   <span><span className="font-medium text-foreground/70">Format:</span> {lastSettings.outputFormat}</span>
                 )}

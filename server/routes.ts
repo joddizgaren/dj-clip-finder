@@ -120,12 +120,11 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
 
       writeFileSync(scriptPath, script, "utf8");
 
-      // Use cmd.exe's START /WAIT to launch PowerShell in its own interactive
-      // window — this is the only reliable way to get a GUI dialog from a
-      // Node.js child process on Windows. The dialog result goes to a temp file.
+      // Run PowerShell hidden — the file dialog (Windows Forms) still appears
+      // as a GUI element, but the PowerShell console window stays invisible.
       await execAsync(
-        `start "" /wait powershell.exe -NoProfile -STA -ExecutionPolicy Bypass -File "${psScriptPath}"`,
-        { shell: true, timeout: 5 * 60 * 1000 }
+        `powershell.exe -WindowStyle Hidden -NoProfile -STA -ExecutionPolicy Bypass -File "${psScriptPath}"`,
+        { shell: false, windowsHide: true, timeout: 5 * 60 * 1000 }
       );
 
       let filePath: string | null = null;

@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, dialog, ipcMain, utilityProcess } from "electron";
+import { app, BrowserWindow, shell, dialog, ipcMain, utilityProcess, Menu } from "electron";
 import { autoUpdater } from "electron-updater";
 import path from "path";
 import * as fs from "fs";
@@ -213,6 +213,9 @@ if (!gotLock) {
   // ─── App lifecycle ──────────────────────────────────────────────────────────
 
   app.whenReady().then(async () => {
+    // Remove the default File/Edit/View/Window/Help menu bar.
+    Menu.setApplicationMenu(null);
+
     // Register the custom URL protocol (belt-and-suspenders alongside the
     // registry entries that electron-builder writes during install).
     app.setAsDefaultProtocolClient(PROTOCOL);
