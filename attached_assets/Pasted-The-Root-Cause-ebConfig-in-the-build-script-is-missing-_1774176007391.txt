@@ -1,0 +1,47 @@
+The Root Cause: ebConfig in the build script is missing extraResources
+The build script has two places that configure electron-builder: the electron-builder.yml file, and the ebConfig object inside script/build.electron.ts. When you run npx tsx script/build.electron.ts, the script calls electronBuild({ config: ebConfig }) — the ebConfig object overrides electron-builder.yml.
+The ebConfig object is missing the extraResources section that tells electron-builder to copy server.cjs and ffmpeg into the resources/ folder of the packaged app. Without extraResources, those files never make it into the installer. When the app launches, it looks for resources/server.cjs, can't find it, and the server never starts — hence the 30-second timeout.
+
+All the Issues Found
+Bug 1 (The main crash): extraResources missing from ebConfig
+The electron-builder.yml has the correct extraResources section, but the build script's ebConfig object (which is what actually runs) is missing it entirely. server.cjs and ffmpeg are never copied into the installer.
+Bug 2: ebConfig is also missing extraResources for server.cjs & ffmpeg
+Even though electron-builder.yml has it correctly, it's never used because the JS ebConfig overrides it.
+Bug 3: storage.ts uses require("./storage.sqlite") but esbuild must bundle it
+The good news: this should work because esbuild with bundle: true does follow string-literal require() calls. But it needs confirmation — if storage.sqlite gets excluded for any reason the app will crash at startup.
+
+The Fix
+You need to add extraResources to the ebConfig object in script/build.electron.ts. Open that file and find the ebConfig object. It currently ends like this:
+ts    nsis: { ... },
+    publish: { ... },
+  };
+Add the extraResources key to it:
+ts    nsis: {
+      oneClick: false,
+      perMachine: true,
+      allowElevation: true,
+      allowToChangeInstallationDirectory: true,
+      createDesktopShortcut: true,
+      createStartMenuShortcut: true,
+      shortcutName: "DJ Clip Studio",
+      deleteAppDataOnUninstall: false,
+    },
+    extraResources: [                              // ← ADD THIS BLOCK
+      {
+        from: "dist/electron/server.cjs",
+        to: "server.cjs",
+      },
+      {
+        from: "dist/electron/ffmpeg",
+        to: "ffmpeg",
+        filter: ["**/*"],
+      },
+    ],
+    publish: {
+      provider: "github",
+      owner: "joddizgaren",
+      repo: "dj-clip-finder",
+      releaseType: "release",
+    },
+  };
+That's the one change that will fix the startup crash. After making this change, run npx tsx script/build.electron.ts again and reinstall the output .exe.

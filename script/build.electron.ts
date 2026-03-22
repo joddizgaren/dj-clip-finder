@@ -208,6 +208,14 @@ async function buildAll() {
       shortcutName: "DJ Clip Studio",
       deleteAppDataOnUninstall: false,
     },
+    // Files placed in the resources/ folder alongside the ASAR.
+    // server.cjs is self-contained (all deps bundled) so no node_modules needed.
+    extraResources: [
+      { from: "dist/electron/server.cjs", to: "server.cjs" },
+      { from: "dist/electron/ffmpeg", to: "ffmpeg", filter: ["**/*"] },
+    ],
+    // Register djclipstudio:// so password-recovery email links open the app.
+    protocols: [{ name: "DJ Clip Studio", schemes: ["djclipstudio"] }],
     publish: {
       provider: "github",
       owner: "joddizgaren",
