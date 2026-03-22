@@ -4,3 +4,7 @@ dist
 server/public
 vite.config.ts.*
 *.tar.gz
+release/
+dist/
+electron/ffmpeg/*.exe
+node_modules/
