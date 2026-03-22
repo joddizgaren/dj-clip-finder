@@ -96,7 +96,7 @@ async function buildAll() {
   console.log("✔  Frontend → dist/electron/public/\n");
 
   // ── 3. Bundle the Express server ─────────────────────────────────────────
-  // Bundle ALL npm packages directly into server-bundle.js so it is fully
+  // Bundle ALL npm packages directly into server.cjs so it is fully
   // self-contained when running from the installer's resources/ folder
   // (where node_modules is not present).
   //
@@ -126,7 +126,7 @@ async function buildAll() {
     minify: false,
     logLevel: "info",
   });
-  console.log("✔  Server → dist/electron/server-bundle.js\n");
+  console.log("✔  Server → dist/electron/server.cjs\n");
 
   // ── 4. Bundle the Electron main process ──────────────────────────────────
   console.log("▶  Bundling Electron main process…");
@@ -183,11 +183,11 @@ async function buildAll() {
   //   3. Exclusions > Add or remove exclusions > Add a folder
   //   4. Select C:\DJ-Clip-Finder
   //
-  console.log("⏳ Waiting 20s for Windows Defender to finish scanning...");
+  console.log("\u23f3 Waiting 20s for Windows Defender to finish scanning...");
   await new Promise((r) => setTimeout(r, 20_000));
-  console.log("✔  Done\n");
+  console.log("\u2714  Done\n");
 
-  console.log("▶  Packaging installer (electron-builder)…");
+  console.log("\u25b6  Packaging installer (electron-builder)\u2026");
   const { build: electronBuild } = await import("electron-builder");
 
   // All config lives in electron-builder.yml — no duplicate config here.
@@ -198,7 +198,7 @@ async function buildAll() {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
         if (attempt > 1) {
-          console.log(`\n  Cleaning release/ before retry…`);
+          console.log(`\n  Cleaning release/ before retry\u2026`);
           await rm("release", { recursive: true, force: true });
         }
         await electronBuild({});
@@ -208,8 +208,8 @@ async function buildAll() {
         lastError = err instanceof Error ? err : new Error(String(err));
         if (lastError.message.includes("EBUSY") && attempt < MAX_ATTEMPTS) {
           console.log(
-            `\n  ⚠  Windows Defender lock (attempt ${attempt}/${MAX_ATTEMPTS}).` +
-            `  Waiting 20s…`
+            `\n  \u26a0  Windows Defender lock (attempt ${attempt}/${MAX_ATTEMPTS}).` +
+            `  Waiting 20s\u2026`
           );
           await new Promise((r) => setTimeout(r, 20_000));
         } else {
@@ -222,7 +222,7 @@ async function buildAll() {
     await writeFile("package.json", pkgRaw);
   }
 
-  console.log("\n✅ Done! Check the release/ folder for the installer .exe");
+  console.log("\n\u2705 Done! Check the release/ folder for the installer .exe");
   console.log(
     "\nTo publish a release:\n" +
     "  1. Commit and push code to GitHub\n" +
@@ -233,6 +233,6 @@ async function buildAll() {
 }
 
 buildAll().catch((err) => {
-  console.error("\n❌ Build failed:", err.message || err);
+  console.error("\n\u274c Build failed:", err.message || err);
   process.exit(1);
 });
