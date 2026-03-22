@@ -1,0 +1,78 @@
+appId: com.joddizgaren.djclipstudio
+productName: DJ Clip Studio
+
+# Where electron-builder looks for the packaged app files
+directories:
+  output: release
+  buildResources: electron/build-resources
+
+# Inject main entry point into package.json at build time (does NOT modify the file)
+extraMetadata:
+  main: dist/electron/main.cjs
+
+# Files bundled inside the ASAR (the app package).
+# Only the Electron main process files go here.
+# Do NOT put public/ here — the Express server serves it from
+# process.resourcesPath/public/ (outside the ASAR), so it must
+# live in extraResources below.
+files:
+  - dist/electron/main.cjs
+  - dist/electron/preload.js
+  - package.json
+
+# Files copied to resources/ alongside the ASAR.
+# These are accessible at runtime via process.resourcesPath.
+# server.cjs, public/, and ffmpeg/ all go here so the server
+# process can reach them at a real filesystem path.
+extraResources:
+  - from: dist/electron/server.cjs
+    to: server.cjs
+  - from: dist/electron/public
+    to: public
+  - from: dist/electron/ffmpeg
+    to: ffmpeg
+
+# ─── Windows ─────────────────────────────────────────────────────────────────
+win:
+  icon: electron/build-resources/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64
+
+# Register djclipstudio:// as a Windows URL protocol so password-recovery
+# email links open the app instead of a browser.
+protocols:
+  name: DJ Clip Studio
+  schemes:
+    - djclipstudio
+
+nsis:
+  oneClick: false
+  # perMachine installs to C:\Program Files\ and requires UAC elevation.
+  perMachine: true
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: DJ Clip Studio
+  installerIcon: electron/build-resources/icon.ico
+  uninstallerIcon: electron/build-resources/icon.ico
+  installerHeaderIcon: electron/build-resources/icon.ico
+  deleteAppDataOnUninstall: false
+
+# ─── macOS (optional, future) ─────────────────────────────────────────────────
+mac:
+  category: public.app-category.music
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+
+# ─── Auto-update (GitHub Releases) ───────────────────────────────────────────
+publish:
+  provider: github
+  owner: joddizgaren
+  repo: dj-clip-finder
+  releaseType: release

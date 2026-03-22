@@ -1,0 +1,14 @@
+The build log tells us exactly what's happening. Look at this critical line:
+loaded configuration  file=C:\DJ-Clip-Finder\electron-builder.yml
+The build script is ignoring the ebConfig object and loading electron-builder.yml instead. This means the extraResources fix needs to go into electron-builder.yml, which already has it correctly — but the EBUSY error is stopping the copy before it finishes.Ran 9 commandsRan 9 commandsNow I have the complete picture. Let me write the fixed files.Ran a command, created a file, edited a fileRan a command, created a file, edited a fileNow fix the build script — same public/ change in ebConfig, plus add a delay after building server.cjs to let antivirus release the lock before electron-builder tries to copy it:Ran 4 commands, viewed a file, edited a fileRan 4 commands, viewed a file, edited a fileTwo bugs were found and fixed. Here's what was wrong and what changed:
+
+Bug 1 — The app crash (root cause of "30s timeout")
+public/ was inside the ASAR archive but the server looked for it outside.
+electron/main.ts sets ELECTRON_PUBLIC_PATH = process.resourcesPath/public/, which is a real folder outside the ASAR. But electron-builder.yml had public/ listed under files: — which puts it inside the compressed ASAR archive. So when the server called serveStatic(), fs.existsSync(distPath) returned false, it threw an error, and the server process died before ever calling listen() — causing the 30-second wait.
+Fix: Removed dist/electron/public/**/* from files: and added it to extraResources: (both in electron-builder.yml and in the ebConfig object in build.electron.ts). Now public/ lands at resources/public/ exactly where main.ts expects it.
+
+Bug 2 — The build failure (EBUSY)
+Windows Defender scans .cjs files the moment they're created. The build script was jumping straight into electron-builder right after writing server.cjs, and antivirus still had a lock on it when electron-builder tried to copy it.
+Fix: Added a 12-second cooldown pause between the esbuild step and the electron-builder step. Also increased the EBUSY retry attempts from 3 to 6 (with 10s between each), as a belt-and-suspenders backup.
+
+What to do: Replace your electron-builder.yml and script/build.electron.ts with the downloaded files, then run npx tsx script/build.electron.ts again.

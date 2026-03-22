@@ -11,16 +11,19 @@ extraMetadata:
   main: dist/electron/main.cjs
 
 # Files bundled inside the ASAR (the app package).
-# public/ must NOT be here — the Express server serves it from
-# process.resourcesPath/public/ (a real path outside the ASAR).
+# Only the Electron main process files go here.
+# Do NOT put public/ here — the Express server serves it from
+# process.resourcesPath/public/ (outside the ASAR), so it must
+# live in extraResources below.
 files:
   - dist/electron/main.cjs
   - dist/electron/preload.js
   - package.json
 
-# Files copied to resources/ alongside the ASAR (accessible via process.resourcesPath).
-# server.cjs is self-contained (all deps bundled). public/ must be here so
-# the Express static server can read it from a real filesystem path.
+# Files copied to resources/ alongside the ASAR.
+# These are accessible at runtime via process.resourcesPath.
+# server.cjs, public/, and ffmpeg/ all go here so the server
+# process can reach them at a real filesystem path.
 extraResources:
   - from: dist/electron/server.cjs
     to: server.cjs

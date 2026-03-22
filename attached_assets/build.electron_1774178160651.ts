@@ -154,13 +154,13 @@ async function buildAll() {
     console.log("✔  FFmpeg staged → dist/electron/ffmpeg/\n");
   }
 
-  // ── 5c. Antivirus cooldown ────────────────────────────────────────────────
-  // Windows Defender locks .cjs and .js files immediately after they are
-  // written. Pausing here lets the scanner finish before electron-builder
-  // tries to copy those files into release/.
+  // ── 5c. Wait for antivirus to release newly-created files ────────────────
+  // Windows Defender and other scanners immediately lock .cjs files after
+  // they are written. Waiting here gives the scanner time to finish before
+  // electron-builder tries to copy them into the release folder.
   console.log("⏳ Waiting 12s for antivirus scanner to release files…");
   await new Promise((r) => setTimeout(r, 12_000));
-  console.log("✔  Antivirus cooldown done\n");
+  console.log("\u2714  Antivirus cooldown done\n");
 
   // ── 6. Run electron-builder ───────────────────────────────────────────────
   // electron-builder requires "electron" and "electron-builder" to be in
@@ -187,12 +187,19 @@ async function buildAll() {
     npmRebuild: false,
     directories: { output: "release", buildResources: "electron/build-resources" },
     extraMetadata: { main: "dist/electron/main.cjs" },
-    // public/ must NOT be in files (ASAR) — Express serves it from
-    // process.resourcesPath/public/ (outside the ASAR). It goes in extraResources.
+    // public/ must NOT be in files (ASAR) — it needs to land at
+    // process.resourcesPath/public/ so the Express server can serve it.
+    // It goes in extraResources below instead.
     files: [
       "dist/electron/main.cjs",
       "dist/electron/preload.js",
       "package.json",
+    ],
+    extraResources: [
+      { from: "dist/electron/server.cjs", to: "server.cjs" },
+      { from: "dist/electron/public",     to: "public" },
+      { from: "dist/electron/ffmpeg",     to: "ffmpeg",
+        filter: ["**/*"] },
     ],
     win: {
       icon: existsSync("electron/build-resources/icon.ico")
@@ -217,16 +224,6 @@ async function buildAll() {
       shortcutName: "DJ Clip Studio",
       deleteAppDataOnUninstall: false,
     },
-    // Files placed in the resources/ folder alongside the ASAR.
-    // server.cjs is self-contained (all deps bundled) so no node_modules needed.
-    // public/ must be here (not in files/ASAR) so Express can read it at a real path.
-    extraResources: [
-      { from: "dist/electron/server.cjs", to: "server.cjs" },
-      { from: "dist/electron/public",     to: "public" },
-      { from: "dist/electron/ffmpeg",     to: "ffmpeg", filter: ["**/*"] },
-    ],
-    // Register djclipstudio:// so password-recovery email links open the app.
-    protocols: [{ name: "DJ Clip Studio", schemes: ["djclipstudio"] }],
     publish: {
       provider: "github",
       owner: "joddizgaren",
@@ -235,8 +232,8 @@ async function buildAll() {
     },
   };
 
-  // Retry up to 6 times on EBUSY — Windows Defender briefly locks files
-  // after the antivirus cooldown on slower/busier machines.
+  // Retry up to 3 times on EBUSY — antivirus scanners briefly lock newly
+  // created .exe files on Windows but release them within a few seconds.
   const MAX_ATTEMPTS = 6;
   let lastError: Error | null = null;
   try {
