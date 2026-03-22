@@ -32,16 +32,17 @@ interface AppShellProps {
 }
 
 function AppShell({ onSignOut }: AppShellProps) {
-  const [updateReady, setUpdateReady] = useState(false);
+  const [updateState, setUpdateState] = useState<"idle" | "downloading" | "ready">("idle");
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   useEffect(() => {
     if (!isElectron()) return;
-    const unsubscribe = window.electronAPI!.onUpdateDownloaded(() => setUpdateReady(true));
-    return unsubscribe;
+    const unsubAvail    = window.electronAPI!.onUpdateAvailable(() => setUpdateState("downloading"));
+    const unsubDownload = window.electronAPI!.onUpdateDownloaded(() => setUpdateState("ready"));
+    return () => { unsubAvail(); unsubDownload(); };
   }, []);
 
-  const showBanner = updateReady && !bannerDismissed;
+  const showBanner = updateState !== "idle" && !bannerDismissed;
 
   return (
     <div className={showBanner ? "pt-9" : undefined}>
@@ -51,19 +52,21 @@ function AppShell({ onSignOut }: AppShellProps) {
           className="fixed inset-x-0 top-0 z-[60] flex h-9 items-center justify-between gap-3 bg-primary px-4 text-sm text-primary-foreground"
         >
           <div className="flex items-center gap-2">
-            <RefreshCw className="h-4 w-4 shrink-0" />
-            <span>A new version is ready.</span>
+            <RefreshCw className={`h-4 w-4 shrink-0 ${updateState === "downloading" ? "animate-spin" : ""}`} />
+            <span>{updateState === "ready" ? "A new version is ready." : "Downloading update…"}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Button
-              data-testid="button-restart-update"
-              size="sm"
-              variant="secondary"
-              className="h-6 text-xs"
-              onClick={() => window.electronAPI!.installUpdate()}
-            >
-              Restart to install
-            </Button>
+            {updateState === "ready" && (
+              <Button
+                data-testid="button-restart-update"
+                size="sm"
+                variant="secondary"
+                className="h-6 text-xs"
+                onClick={() => window.electronAPI!.installUpdate()}
+              >
+                Restart to install
+              </Button>
+            )}
             <button
               data-testid="button-dismiss-update"
               onClick={() => setBannerDismissed(true)}

@@ -172,18 +172,33 @@ function setupAutoUpdater(): void {
     private: false,
   });
 
-  autoUpdater.on("update-available", () => {
+  // Write all updater events to a dedicated log so errors are visible.
+  const updaterLog = path.join(app.getPath("userData"), "updater.log");
+  const logUpdater = (msg: string) => {
+    try {
+      fs.appendFileSync(updaterLog, `[${new Date().toISOString()}] ${msg}\n`);
+    } catch {}
+  };
+
+  autoUpdater.on("checking-for-update", () => logUpdater("Checking for update…"));
+  autoUpdater.on("update-not-available", () => logUpdater("No update available."));
+  autoUpdater.on("update-available", (info) => {
+    logUpdater(`Update available: ${info.version}`);
     mainWindow?.webContents.send("update-available");
   });
-  autoUpdater.on("update-downloaded", () => {
+  autoUpdater.on("download-progress", (p) => {
+    logUpdater(`Downloading: ${Math.round(p.percent)}%`);
+  });
+  autoUpdater.on("update-downloaded", (info) => {
+    logUpdater(`Update downloaded: ${info.version}`);
     mainWindow?.webContents.send("update-downloaded");
   });
   autoUpdater.on("error", (err: Error) => {
-    console.warn("[updater]", err.message);
+    logUpdater(`ERROR: ${err.message}`);
   });
 
   setTimeout(
-    () => autoUpdater.checkForUpdatesAndNotify().catch(() => {}),
+    () => autoUpdater.checkForUpdatesAndNotify().catch((e) => logUpdater(`checkForUpdates threw: ${e}`)),
     10_000
   );
 }
