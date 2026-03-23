@@ -1,0 +1,25 @@
+Fix root cause: bundle all server dependencies into server.cjs
+
+The real reason the server never started was that server.cjs was only
+50 KB — all npm packages (express, cors, drizzle-orm, etc.) were marked
+external and not bundled. When the utility process ran server.cjs from
+resources/ in the packaged app, require('express') immediately failed
+because node_modules is not accessible from that location. The server
+always crashed before ever listening on port 5001.
+
+Fix:
+  script/build.electron.ts
+  - Removed getAllPackageNames() helper — no longer needed
+  - Changed server esbuild external list from [...allPkgs] to only:
+      ["electron", "bufferutil", "utf-8-validate", "pg-native"]
+    All other npm packages (express, cors, drizzle-orm, pg, multer,
+    etc.) are now bundled directly into server.cjs
+  - Added alias: { "@shared": path.resolve("shared") } so esbuild
+    correctly resolves the @shared/* TypeScript path alias
+  - With platform:"node", all Node.js built-ins (including node:sqlite)
+    are automatically external — no explicit listing needed
+
+Result:
+  server.cjs will be self-contained (~10–20 MB instead of 50 KB).
+  The utility process can now load it cleanly from resources/ with no
+  external dependencies required at runtime.
