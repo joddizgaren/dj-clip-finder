@@ -1,0 +1,44 @@
+
+> rest-express@1.0.0 dev
+> NODE_ENV=development tsx server/index.ts
+
+[1G[0K8:37:04 AM [express] serving on port 5000
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+8:37:09 AM [express] GET /api/uploads 304 in 19ms :: []
+8:38:13 AM [express] GET /api/uploads 304 in 15ms :: []
+8:39:15 AM [express] GET /api/uploads 304 in 10ms :: []
+9:40:54 AM [express] GET /api/uploads 304 in 10ms :: []
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m9:41:40 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.tsx, /src/index.css[22m
+[2m9:41:41 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32m✨ new dependencies optimized: [33m@supabase/supabase-js, @radix-ui/react-label[32m[39m
+[2m9:41:41 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32m✨ optimized dependencies changed. reloading[39m
+9:41:46 AM [express] GET /api/uploads 304 in 11ms :: []
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m9:42:23 AM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/index.css, /src/App.tsx, /src/pages/LoginPage.tsx[22m

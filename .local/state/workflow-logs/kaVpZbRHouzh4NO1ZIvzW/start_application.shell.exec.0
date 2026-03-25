@@ -1,0 +1,12 @@
+
+> rest-express@1.0.0 dev
+> NODE_ENV=development tsx server/index.ts
+
+[1G[0K11:29:29 AM [express] serving on port 5000
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+11:29:32 AM [express] GET /api/uploads 304 in 17ms :: []
+11:29:35 AM [express] GET /api/uploads 200 in 2ms :: []
+11:34:37 AM [express] POST /api/browse-native 400 in 0ms :: {"message":"Native picker only available on Windows"}
+11:34:37 AM [express] GET /api/browse 200 in 2ms :: {"path":"/home/runner","parent":"/home","dirs":[".cache",".config",".local",".nix-defexpr",".npm","workspace"],"files":[]}
+11:34:39 AM [express] POST /api/browse-native 400 in 1ms :: {"message":"Native picker only available on Windows"}
