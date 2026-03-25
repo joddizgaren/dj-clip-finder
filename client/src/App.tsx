@@ -7,7 +7,7 @@ import NotFound from "@/pages/not-found";
 import Home from "@/pages/Home";
 import LoginPage from "@/pages/LoginPage";
 import { ThemeToggle } from "@/components/ThemeToggle";
-import { Music2, Loader2, RefreshCw, X, LogOut } from "lucide-react";
+import { Music2, Loader2, RefreshCw, X, LogOut, Download, RotateCcw, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase, isElectron } from "@/lib/supabase";
 import { useState, useEffect } from "react";
@@ -32,14 +32,24 @@ interface AppShellProps {
 }
 
 function AppShell({ onSignOut }: AppShellProps) {
-  const [updateState, setUpdateState] = useState<"idle" | "downloading" | "ready">("idle");
+  const [updateState, setUpdateState] = useState<"idle" | "available" | "downloading" | "ready" | "error">("idle");
+  const [updateVersion, setUpdateVersion] = useState<string>("");
+  const [downloadPct, setDownloadPct] = useState<number>(0);
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   useEffect(() => {
     if (!isElectron()) return;
-    const unsubAvail    = window.electronAPI!.onUpdateAvailable(() => setUpdateState("downloading"));
+    const unsubAvail = window.electronAPI!.onUpdateAvailable((version: string) => {
+      setUpdateVersion(version);
+      setUpdateState("available");
+    });
+    const unsubProgress = window.electronAPI!.onDownloadProgress((pct: number) => {
+      setDownloadPct(pct);
+      setUpdateState("downloading");
+    });
     const unsubDownload = window.electronAPI!.onUpdateDownloaded(() => setUpdateState("ready"));
-    return () => { unsubAvail(); unsubDownload(); };
+    const unsubError = window.electronAPI!.onUpdateError(() => setUpdateState("error"));
+    return () => { unsubAvail(); unsubProgress(); unsubDownload(); unsubError(); };
   }, []);
 
   const showBanner = updateState !== "idle" && !bannerDismissed;
@@ -52,10 +62,46 @@ function AppShell({ onSignOut }: AppShellProps) {
           className="fixed inset-x-0 top-0 z-[60] flex h-9 items-center justify-between gap-3 bg-primary px-4 text-sm text-primary-foreground"
         >
           <div className="flex items-center gap-2">
-            <RefreshCw className={`h-4 w-4 shrink-0 ${updateState === "downloading" ? "animate-spin" : ""}`} />
-            <span>{updateState === "ready" ? "A new version is ready." : "Downloading update…"}</span>
+            {updateState === "available" && (
+              <>
+                <Download className="h-4 w-4 shrink-0" />
+                <span>Version {updateVersion} is available.</span>
+              </>
+            )}
+            {updateState === "downloading" && (
+              <>
+                <RefreshCw className="h-4 w-4 shrink-0 animate-spin" />
+                <span>Downloading update… {downloadPct}%</span>
+              </>
+            )}
+            {updateState === "ready" && (
+              <>
+                <RotateCcw className="h-4 w-4 shrink-0" />
+                <span>Update ready — the app will restart to install.</span>
+              </>
+            )}
+            {updateState === "error" && (
+              <>
+                <AlertCircle className="h-4 w-4 shrink-0" />
+                <span>Update failed. Check your connection and try again.</span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-2">
+            {updateState === "available" && (
+              <Button
+                data-testid="button-download-update"
+                size="sm"
+                variant="secondary"
+                className="h-6 text-xs"
+                onClick={() => {
+                  setUpdateState("downloading");
+                  window.electronAPI!.downloadUpdate();
+                }}
+              >
+                Download
+              </Button>
+            )}
             {updateState === "ready" && (
               <Button
                 data-testid="button-restart-update"
@@ -64,7 +110,7 @@ function AppShell({ onSignOut }: AppShellProps) {
                 className="h-6 text-xs"
                 onClick={() => window.electronAPI!.installUpdate()}
               >
-                Restart to install
+                Restart now
               </Button>
             )}
             <button

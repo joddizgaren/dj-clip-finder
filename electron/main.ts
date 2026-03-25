@@ -165,6 +165,9 @@ function sendDeepLink(url: string): void {
 // ─── Auto-updater ────────────────────────────────────────────────────────────
 
 function setupAutoUpdater(): void {
+  // Do NOT auto-download — we ask the user first.
+  autoUpdater.autoDownload = false;
+
   autoUpdater.setFeedURL({
     provider: "github",
     owner: "joddizgaren",
@@ -184,10 +187,13 @@ function setupAutoUpdater(): void {
   autoUpdater.on("update-not-available", () => logUpdater("No update available."));
   autoUpdater.on("update-available", (info) => {
     logUpdater(`Update available: ${info.version}`);
-    mainWindow?.webContents.send("update-available");
+    // Send version so the UI can show "Version X.X.X is available"
+    mainWindow?.webContents.send("update-available", info.version);
   });
   autoUpdater.on("download-progress", (p) => {
-    logUpdater(`Downloading: ${Math.round(p.percent)}%`);
+    const pct = Math.round(p.percent);
+    logUpdater(`Downloading: ${pct}%`);
+    mainWindow?.webContents.send("download-progress", pct);
   });
   autoUpdater.on("update-downloaded", (info) => {
     logUpdater(`Update downloaded: ${info.version}`);
@@ -195,14 +201,17 @@ function setupAutoUpdater(): void {
   });
   autoUpdater.on("error", (err: Error) => {
     logUpdater(`ERROR: ${err.message}`);
+    mainWindow?.webContents.send("update-error", err.message);
   });
 
   setTimeout(
-    () => autoUpdater.checkForUpdatesAndNotify().catch((e) => logUpdater(`checkForUpdates threw: ${e}`)),
+    () => autoUpdater.checkForUpdates().catch((e) => logUpdater(`checkForUpdates threw: ${e}`)),
     10_000
   );
 }
 
+// User clicked "Download" in the banner
+ipcMain.on("download-update", () => autoUpdater.downloadUpdate().catch(() => {}));
 ipcMain.on("install-update", () => autoUpdater.quitAndInstall());
 
 // ─── Single-instance lock ─────────────────────────────────────────────────────
