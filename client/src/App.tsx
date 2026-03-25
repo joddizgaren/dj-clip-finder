@@ -131,7 +131,7 @@ function AppShell({ onSignOut }: AppShellProps) {
             <Music2 className="h-3.5 w-3.5 text-primary-foreground" />
           </div>
           <span className="text-sm font-semibold text-foreground">DJ Clip Studio</span>
-          <span className="text-xs text-muted-foreground/60">v1.0.4</span>
+          <span className="text-xs text-muted-foreground/60">v1.0.5</span>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />
