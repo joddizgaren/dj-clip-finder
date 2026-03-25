@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "oeJNXpzYm0JNJxetop1V5"
+uri = "file://RELEASE_GUIDE.txt"
+type = "text"
+title = "DJ Clip Studio — Release Guide"

@@ -1,0 +1,121 @@
+════════════════════════════════════════════════════════════
+  DJ CLIP STUDIO — RELEASE GUIDE
+  How to build and publish a new version
+════════════════════════════════════════════════════════════
+
+
+────────────────────────────────────────────────────────────
+STEP 1 — MAKE YOUR CHANGES ON REPLIT
+────────────────────────────────────────────────────────────
+
+1. Make all code changes on Replit as usual.
+
+2. Update the version number in TWO places on Replit:
+
+   a) client/src/App.tsx
+      Find: v1.0.3
+      Change to: v1.0.4  (or whatever the new version is)
+
+   b) package.json  ← can only be edited in Notepad on Windows
+      Find: "version": "1.0.3"
+      Change to: "version": "1.0.4"
+      (Do this on your Windows machine in Step 2)
+
+3. Download the project from Replit as a ZIP and extract it
+   to C:\DJ-Clip-Finder (replace the existing files).
+
+
+────────────────────────────────────────────────────────────
+STEP 2 — ON YOUR WINDOWS MACHINE (C:\DJ-Clip-Finder)
+────────────────────────────────────────────────────────────
+
+1. Open package.json in Notepad and update the version:
+      "version": "1.0.4"
+
+2. Open a Command Prompt in C:\DJ-Clip-Finder and run:
+
+      npm install
+
+3. Build the installer:
+
+      npx tsx script/build.electron.ts
+
+   This takes a few minutes. When done, the installer will be
+   at:  release\DJ Clip Studio Setup 1.0.4.exe
+
+   NOTE: If you see "Waiting 20s for Windows Defender..." that
+   is normal. If EBUSY errors appear, the build will retry
+   automatically up to 6 times.
+
+
+────────────────────────────────────────────────────────────
+STEP 3 — PUSH CODE TO GITHUB
+────────────────────────────────────────────────────────────
+
+Run these commands (paste all at once):
+
+      git remote add origin https://github.com/joddizgaren/dj-clip-finder.git
+      git add .
+      git commit -m "v1.0.4"
+      git push -u origin main --force
+
+NOTE: "git remote add origin" will show an error if the remote
+already exists — that is fine, just ignore it and the push
+will still work.
+
+
+────────────────────────────────────────────────────────────
+STEP 4 — PUBLISH THE GITHUB RELEASE (installer for users)
+────────────────────────────────────────────────────────────
+
+1. Go to:
+   https://github.com/joddizgaren/dj-clip-finder/releases/new
+
+2. Fill in:
+   - Tag version:    v1.0.4
+   - Release title:  DJ Clip Studio 1.0.4
+
+3. Scroll to the BOTTOM of the page to the section that says
+   "Attach binaries by dropping them here or selecting them"
+   (NOT the description text box — that one is for images only)
+
+4. Upload ALL THREE files from your release\ folder:
+   - DJ Clip Studio Setup 1.0.4.exe      (the installer)
+   - DJ Clip Studio Setup 1.0.4.exe.blockmap
+   - latest.yml
+
+5. Click "Publish release"
+
+
+────────────────────────────────────────────────────────────
+WHAT HAPPENS FOR YOUR USERS
+────────────────────────────────────────────────────────────
+
+- NEW users: download the .exe from GitHub and install it.
+
+- EXISTING users: when they open the app, it checks for
+  updates after 10 seconds. If a new version is found, a
+  banner appears at the top:
+    "Downloading update…" (spinning icon while it downloads)
+    "A new version is ready. — Restart to install"
+  They click the button and the app updates automatically.
+
+
+────────────────────────────────────────────────────────────
+TROUBLESHOOTING
+────────────────────────────────────────────────────────────
+
+If the auto-update doesn't appear for existing users:
+  Open this file on the user's machine to see what happened:
+  C:\Users\<name>\AppData\Roaming\DJ Clip Studio\\updater.log
+
+If the build fails with EBUSY errors repeatedly:
+  Add C:\DJ-Clip-Finder to Windows Defender exclusions:
+  Windows Security → Virus & threat protection →
+  Manage settings → Exclusions → Add a folder
+
+If git push is rejected (non-fast-forward):
+  Add --force to the push command:
+  git push -u origin main --force
+
+════════════════════════════════════════════════════════════
