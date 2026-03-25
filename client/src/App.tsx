@@ -35,6 +35,7 @@ function AppShell({ onSignOut }: AppShellProps) {
   const [updateState, setUpdateState] = useState<"idle" | "available" | "downloading" | "ready" | "error">("idle");
   const [updateVersion, setUpdateVersion] = useState<string>("");
   const [downloadPct, setDownloadPct] = useState<number>(0);
+  const [updateError, setUpdateError] = useState<string>("");
   const [bannerDismissed, setBannerDismissed] = useState(false);
 
   useEffect(() => {
@@ -48,7 +49,7 @@ function AppShell({ onSignOut }: AppShellProps) {
       setUpdateState("downloading");
     });
     const unsubDownload = window.electronAPI!.onUpdateDownloaded(() => setUpdateState("ready"));
-    const unsubError = window.electronAPI!.onUpdateError(() => setUpdateState("error"));
+    const unsubError = window.electronAPI!.onUpdateError((msg: string) => { setUpdateError(msg); setUpdateState("error"); });
     return () => { unsubAvail(); unsubProgress(); unsubDownload(); unsubError(); };
   }, []);
 
@@ -83,7 +84,7 @@ function AppShell({ onSignOut }: AppShellProps) {
             {updateState === "error" && (
               <>
                 <AlertCircle className="h-4 w-4 shrink-0" />
-                <span>Update failed. Check your connection and try again.</span>
+                <span title={updateError}>Update failed: {updateError || "check updater.log in AppData for details"}</span>
               </>
             )}
           </div>
@@ -131,7 +132,7 @@ function AppShell({ onSignOut }: AppShellProps) {
             <Music2 className="h-3.5 w-3.5 text-primary-foreground" />
           </div>
           <span className="text-sm font-semibold text-foreground">DJ Clip Studio</span>
-          <span className="text-xs text-muted-foreground/60">v1.0.5</span>
+          <span className="text-xs text-muted-foreground/60">v1.0.6</span>
         </div>
         <div className="flex items-center gap-2">
           <ThemeToggle />

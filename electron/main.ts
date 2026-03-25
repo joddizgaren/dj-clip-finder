@@ -167,6 +167,10 @@ function sendDeepLink(url: string): void {
 function setupAutoUpdater(): void {
   // Do NOT auto-download — we ask the user first.
   autoUpdater.autoDownload = false;
+  // Disable code-signature verification so unsigned builds can update.
+  autoUpdater.autoInstallOnAppQuit = false;
+  // @ts-ignore — not in all type defs but supported at runtime
+  autoUpdater.verifyUpdateCodeSignature = false;
 
   autoUpdater.setFeedURL({
     provider: "github",
@@ -211,7 +215,13 @@ function setupAutoUpdater(): void {
 }
 
 // User clicked "Download" in the banner
-ipcMain.on("download-update", () => autoUpdater.downloadUpdate().catch(() => {}));
+ipcMain.on("download-update", () => {
+  const updaterLog = path.join(app.getPath("userData"), "updater.log");
+  autoUpdater.downloadUpdate().catch((e: Error) => {
+    try { fs.appendFileSync(updaterLog, `[${new Date().toISOString()}] downloadUpdate() threw: ${e?.message}\n${e?.stack}\n`); } catch {}
+    mainWindow?.webContents.send("update-error", e?.message ?? "Unknown error");
+  });
+});
 ipcMain.on("install-update", () => autoUpdater.quitAndInstall());
 
 // ─── Single-instance lock ─────────────────────────────────────────────────────
