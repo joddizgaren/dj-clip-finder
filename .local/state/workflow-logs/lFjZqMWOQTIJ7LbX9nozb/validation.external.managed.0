@@ -1,0 +1,29 @@
+VERDICT: REJECTED
+The diff is close, but it does not fully satisfy core acceptance criteria and includes AI-slop patterns that are explicitly blocking.
+
+Critical findings:
+- **Banned/disabled user on next launch is not handled per requirement.** InVERDICT: REJECTED
+ `AuthGate` (`client/src/App.tsx`), launch-time revalidation uses `supabase.auth.getUser()`, but any faiThe diff is close, but it does not fully satisfy core acceptance criteria and includes AI-slop patterns that are explicitly blocking.
+lure just signs out and routes to the login page with no persisted/auth-ga
+te error state. The task requires a clear disabled-account message on next launch (Critical findings:
+“Account disabled. Contact support.”). Current behavior silently drops to login.
+- **AI-slop / type bypass present (blocking per instructions).** The diff uses multiple `any` escapes in new auth/update logic (e.g., `(window as any).electronAPI` in `App.tsx` and `supabase.ts`, `catch (err: any)` in `LoginPage.tsx`). The review policy explicitly calls this out as reject-worthy.
+- **Update banner behavior is partially implemented but not fully aligned.** Banner is dismissible and restart works, but it is not implemented as sticky/fixed top-level UI (it can scroll away), which deviates from the stated UX expectation.
+
+Security:
+- **No serious security violations observed** relative to the task scope. (Using Supabase anon/publishable key client-side is acceptable.)
+
+Next actions:
+1. Add a typed Electron API contract (global `Window` augmentation) and remove all `any` casts from auth/update paths.
+2. In `AuthGate`, distinguish disabled/banned responses during launch revalidation and surface the required explicit disabled-account message immediately on login screen.
+3. Make the update-ready banner truly sticky/fixed at top (and keep dismiss + restart actions) to match UX acceptance criteria exactly.- **Banned/disabled user on next launch is not handled per requirement.** In `AuthGate` (`client/src/App.tsx`), launch-time revalidation uses `supabase.auth.getUser()`, but any failure just signs out and routes to the login page with no persisted/auth-gate error state. The task requires a clear disabled-account message on next launch (“Account disabled. Contact support.”). Current behavior silently drops to login.
+- **AI-slop / type bypass present (blocking per instructions).** The diff uses multiple `any` escapes in new auth/update logic (e.g., `(window as any).electronAPI` in `App.tsx` and `supabase.ts`, `catch (err: any)` in `LoginPage.tsx`). The review policy explicitly calls this out as reject-worthy.
+- **Update banner behavior is partially implemented but not fully aligned.** Banner is dismissible and restart works, but it is not implemented as sticky/fixed top-level UI (it can scroll away), which deviates from the stated UX expectation.
+
+Security:
+- **No serious security violations observed** relative to the task scope. (Using Supabase anon/publishable key client-side is acceptable.)
+
+Next actions:
+1. Add a typed Electron API contract (global `Window` augmentation) and remove all `any` casts from auth/update paths.
+2. In `AuthGate`, distinguish disabled/banned responses during launch revalidation and surface the required explicit disabled-account message immediately on login screen.
+3. Make the update-ready banner truly sticky/fixed at top (and keep dismiss + restart actions) to match UX acceptance criteria exactly.

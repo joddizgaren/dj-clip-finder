@@ -1,0 +1,20 @@
+Here's the full process every time you release a new version:
+
+Step 1 — Make your changes on Replit (update version number in App.tsx, etc.)
+
+Step 2 — Download from Replit and build on Windows
+
+npm install
+npx tsx script/build.electron.ts
+Step 3 — Push the code to GitHub
+
+git remote add origin https://github.com/joddizgaren/dj-clip-finder.git
+git add .
+git commit -m "v1.0.3"
+git push -u origin main --force
+Step 4 — Publish the release on GitHub
+
+Go to https://github.com/joddizgaren/dj-clip-finder/releases/new
+Set the tag to v1.0.3
+Scroll to the bottom and upload the 3 files from your release/ folder: .exe, .blockmap, latest.yml
+Click Publish release

@@ -1,0 +1,68 @@
+
+> rest-express@1.0.0 dev
+> NODE_ENV=development tsx server/index.ts
+
+[1G[0K12:53:48 PM [express] serving on port 5000
+
+A PostCSS plugin did not pass the `from` option to `postcss.parse`. This may cause imported assets to be incorrectly transformed. If you've recently added a PostCSS plugin that raised this warning, please contact the package author to fix the issue.
+12:53:54 PM [express] GET /api/uploads 304 in 16ms :: []
+12:55:20 PM [express] GET /api/browse 200 in 3ms :: {"path":"/home/runner","parent":"/home","dirs":[".cache",".config",".local",".nix-defexpr",".npm","workspace"],"files":[]}
+12:56:08 PM [express] GET /api/browse 404 in 0ms :: {"message":"Path not found"}
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m1:10:45 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/Home.tsx, /src/index.css[22m
+1:10:48 PM [express] GET /api/uploads 304 in 12ms :: []
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m1:10:51 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/Home.tsx, /src/index.css[22m [33m(x2)[39m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m1:10:58 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/Home.tsx, /src/index.css[22m [33m(x3)[39m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[1;1H[0J[2m1:11:05 PM[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/pages/Home.tsx, /src/index.css[22m [33m(x4)[39m

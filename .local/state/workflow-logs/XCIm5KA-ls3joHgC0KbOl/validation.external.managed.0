@@ -1,0 +1,45 @@
+VERDICT: APPROVED_WITH_COMMENTS
+The implementation appears to satisfy the core task requirements (Electron-only Supabase login gate, session revalidation spinner, disabled-account handling path, Electron-only sign-out control, update-downloaded banner wVERDICT: APPROVED_WITH_COMMENTS
+ith restart action, and web/Replit bypass behavior).
+
+Critical findings / analysis:
+- Supabase integration is present and wired correctly for frontend use:
+  - `@supabase/supabase-js` added.
+  - `client/src/lib/supabase.ts` creates a singleton client and returns `null` when env vars are absent, preserving web/dev behavior.
+- Auth gate in `client/src/App.tsx` is correctly scoped to Electron (`window.electronAPI` check via `isElectron()`), with states for checking/authenticated/unauthenticated/disabled and a launch-time session validation spinner.
+- Login UX (`client/src/pages/LoginPage.tsx`) is full-screen, themed, includes loading/error handling, and maps disabled/banned auth errors to a clear user-facing message.
+- Electron-only sign-out is implemented in the header and calls `supabase.auth.signOut()`.
+- Update-ready UX is implemented: listens to `onUpdateDownloaded`, shows dismissible top banner, and triggers `installUpdate()`.
+- Build flow forwards Supabase vars into the Vite bundle via `define` in `script/build.electron.ts`.
+
+Comments (non-blocking but worth addressing):
+1) `script/build.electron.ts` includes hardcoded fallback Supabase URL/key. Functionally this works, but it weakens env-secret discipline and key rotation flexibility. Prefer failing build when vars are missing (or at least warning loudly and requiring explicit opt-in fallback).
+2) `onUpdateDownloaded` listener in `AppShell` has no cleanup path and preload API doesn’t expose unsubscribe; repeated mount/unmount cycles (e.g., sign out then sign in) can register duplicate listeners. Consider returning/removing listeners from preload.
+
+Security: none observed that are serious/blocking for this task. (The embedded key is an anon/publishable key, not a privileged secret.)
+
+Next actions:
+1) Add unsubscribe support for updater IPC listeners in preload and clean up in `useEffect`.
+2) Remove hardcoded Supabase credential fallbacks or gate them behind explicit build-time flag.
+3) (Optional) Normalize disabled-account copy to exact requested text for consistency: “Account disabled. Contact support.”The implementation appears to satisfy the core task requirements (Electron-only Supabase login gate, session revalidation spinner, disabled-account handling path, Electron-only sign-out control, update-downloaded banner with restart action, and web/Replit bypass behavior).
+
+Critical findings / analysis:
+- Supabase integration is present and wired correctly for frontend use:
+  - `@supabase/supabase-js` added.
+  - `client/src/lib/supabase.ts` creates a singleton client and returns `null` when env vars are absent, preserving web/dev behavior.
+- Auth gate in `client/src/App.tsx` is correctly scoped to Electron (`window.electronAPI` check via `isElectron()`), with states for checking/authenticated/unauthenticated/disabled and a launch-time session validation spinner.
+- Login UX (`client/src/pages/LoginPage.tsx`) is full-screen, themed, includes loading/error handling, and maps disabled/banned auth errors to a clear user-facing message.
+- Electron-only sign-out is implemented in the header and calls `supabase.auth.signOut()`.
+- Update-ready UX is implemented: listens to `onUpdateDownloaded`, shows dismissible top banner, and triggers `installUpdate()`.
+- Build flow forwards Supabase vars into the Vite bundle via `define` in `script/build.electron.ts`.
+
+Comments (non-blocking but worth addressing):
+1) `script/build.electron.ts` includes hardcoded fallback Supabase URL/key. Functionally this works, but it weakens env-secret discipline and key rotation flexibility. Prefer failing build when vars are missing (or at least warning loudly and requiring explicit opt-in fallback).
+2) `onUpdateDownloaded` listener in `AppShell` has no cleanup path and preload API doesn’t expose unsubscribe; repeated mount/unmount cycles (e.g., sign out then sign in) can register duplicate listeners. Consider returning/removing listeners from preload.
+
+Security: none observed that are serious/blocking for this task. (The embedded key is an anon/publishable key, not a privileged secret.)
+
+Next actions:
+1) Add unsubscribe support for updater IPC listeners in preload and clean up in `useEffect`.
+2) Remove hardcoded Supabase credential fallbacks or gate them behind explicit build-time flag.
+3) (Optional) Normalize disabled-account copy to exact requested text for consistency: “Account disabled. Contact support.”
