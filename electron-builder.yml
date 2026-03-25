@@ -32,6 +32,7 @@ extraResources:
 
 win:
   icon: electron/build-resources/icon.ico
+  artifactName: DJ-Clip-Studio-Setup-${version}.${ext}
   target:
     - target: nsis
       arch:
